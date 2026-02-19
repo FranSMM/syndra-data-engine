@@ -1,0 +1,14 @@
+# .gitignore
+__pycache__/
+*.pyc
+.env
+.env.example
+venv/
+.DS_Store
+.idea/
+.vscode/
+coverage/
+htmlcov/
+dist/
+build/
+*.egg-info/
