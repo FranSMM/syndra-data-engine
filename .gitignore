@@ -2,7 +2,6 @@
 __pycache__/
 *.pyc
 .env
-.env.example
 venv/
 .DS_Store
 .idea/
@@ -12,3 +11,5 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+/data

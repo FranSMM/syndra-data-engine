@@ -1,4 +1,6 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import PostgresDsn, computed_field
+from pydantic_core import MultiHostUrl
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NeuralNews"
@@ -7,16 +9,33 @@ class Settings(BaseSettings):
     # Base de datos (Postgres)
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
-    POSTGRES_SERVER: str
+    # We set a default 'localhost' here so local execution outside Docker works without modifying the .env file.
+    # When running inside Docker, the .env file will override this with 'db'.
+    POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str
 
-    @property
-    def DATABASE_URL(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    # Pydantic Fail-Fast validation for the DB URL
+    @computed_field
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        # Note the use of postgresql+asyncpg driver
+        return MultiHostUrl.build(
+            scheme="postgresql+asyncpg",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=int(self.POSTGRES_PORT),
+            path=self.POSTGRES_DB,
+        ).unicode_string()
+
+    # Base de datos vectorial (Qdrant)
+    QDRANT_URL: str = "http://localhost:6333"
 
 settings = Settings()

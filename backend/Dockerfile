@@ -11,7 +11,9 @@ WORKDIR /code
 COPY requirements.txt /code/
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# Copiamos el código
+# Copiamos el código y configuración de Alembic
+COPY alembic.ini /code/
+COPY ./alembic /code/alembic
 COPY ./app /code/app
 
 # Comando para arrancar
