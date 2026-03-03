@@ -1,45 +1,51 @@
-Infrastructure & DevOps 🐳
+# 🐳 Infrastructure & DevOps 
 
-This directory contains all IaC (Infrastructure as Code), container configurations, and observability setups for NeuralNews.
+> **This directory contains all IaC (Infrastructure as Code), container configurations, and observability setups for NeuralNews.**
 
-🗺 Topology
+---
 
-The docker-compose.yml defines the following services:
+## 🗺 Topology
 
-api: FastAPI backend.
+The root `docker-compose.yml` defines the following critical services:
 
-postgres: Relational database (Port 5432). Stores raw articles, users, and metadata.
+- **🕸️ api:** The FastAPI backend.
+- **🐘 postgres:** The Relational Database (`Port 5432`). Stores raw articles, users, and metadata.
+- **📐 qdrant:** The Vector Database (`Port 6333`). Stores article embeddings and user vectors.
+- **⚡ redis:** Caching layer and rate-limiting backend.
+- ** orchestrator:** `prefect-server` data pipeline orchestrator.
+- **📈 metrics (Phase 6):** `prometheus` & `grafana` observability stack.
 
-qdrant: Vector database (Port 6333). Stores article embeddings and user vectors.
+---
 
-prefect-server: Data pipeline orchestrator.
+## 🗄 Volumes & Persistence
 
-redis: Caching layer and rate-limiting backend.
+Local directory volumes inside `./data` are used to ensure data persistence across container restarts:
 
-prometheus & grafana: Observability stack (Phase 6).
+```text
+data/
+├── postgres/          # Relational data storage
+├── qdrant/            # Vector embeddings storage
+└── grafana/           # Dashboard configurations (Future)
+```
 
-🗄 Volumes & Persistence
+> ⚠️ **Warning:** Never delete these directories in production unless performing a deliberate hard reset.
 
-Local directory volumes in `./data` are used to ensure data persistence across restarts:
+---
 
-- `./data/postgres`: Postgres storage.
-- `./data/qdrant`: Vector embeddings.
-- `./data/grafana`: Dashboard configurations (Future).
+## 🔒 Environment Variables
 
-Warning: Never delete these directories in production unless performing a hard reset.
+Refer to `.env.example` in the root directory. Critical variables include:
 
-🔒 Environment Variables
+- `DATABASE_URL`
+- `QDRANT_HOST`
+- `JWT_SECRET_KEY`
 
-Refer to .env.example in the root directory. Critical variables include:
+---
 
-DATABASE_URL
+## 📊 Monitoring
 
-QDRANT_HOST
-
-JWT_SECRET_KEY
-
-📊 Monitoring
-
-Grafana: http://localhost:3000 (Default credentials in .env)
-
-Key Metrics: API Latency (p95), VRAM usage, ETL pipeline success rate.
+- **Grafana Dashboard:** `http://localhost:3000` *(Default credentials mapped in `.env`)*
+- **Key Metrics to Track:**
+  - API Latency (p95)
+  - VRAM usage
+  - ETL pipeline success rate

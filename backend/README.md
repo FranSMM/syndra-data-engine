@@ -1,44 +1,58 @@
-Backend API (NeuralNews) ⚙️
+# ⚙️ Backend API (`NeuralNews`)
 
-This module contains the core API responsible for serving news, handling search queries (Lexical + Semantic), and managing user data.
+> **This module contains the core API responsible for serving news, handling search queries (Lexical + Semantic), and managing user data.**
 
-🛠 Tech Stack
+---
 
-Framework: FastAPI (Python 3.11+)
+## 🛠 Tech Stack 
 
-Validation: Pydantic v2
+- **Framework:** `FastAPI` (Python 3.11+)
+- **Validation:** `Pydantic v2`
+- **Database ORM & Query Builder:** `SQLAlchemy (Async)` / `asyncpg`
+- **Vector Search Client:** `Qdrant Client`
+- **Caching:** `Redis`
 
-Database ORM/Query Builder: SQLAlchemy (Async) / asyncpg
+---
 
-Vector Search Client: Qdrant Client
+## 🧩 Key Components
 
-Caching: Redis
+### 1. **Hybrid Search (`/api/v1/search`)**
+Implements advanced Hybrid Search mechanisms. Combines *BM25* scores from PostgreSQL with *Cosine Similarity* scores from Qdrant using **Reciprocal Rank Fusion (RRF)** for unparalleled search accuracy.
 
-🧩 Key Components
+### 2. **Personalized Feed (`/api/v1/feed`)**
+Serves curated, personalized feeds based on user embedding vectors (`RecSys`).
 
-/api/v1/search: Implements Hybrid Search. Combines BM25 scores from PostgreSQL with Cosine Similarity scores from Qdrant using Reciprocal Rank Fusion (RRF).
+### 3. **Data Validation (`/models`)**
+Pydantic schemas enforcing strict data validation between the API boundaries, the Database, and the Frontend consumers.
 
-/api/v1/feed: Serves personalized feeds based on user embedding vectors (RecSys).
+---
 
-/models: Pydantic schemas enforcing strict data validation between the API, Database, and Frontend.
+## 💻 Local Development
 
-💻 Local Development
+If running outside the main `docker-compose` stack for isolated testing or development:
 
-If running outside the main docker-compose for isolated testing:
-
-# Create virtual environment
-python -m venv venv
+### 1. Create a virtual environment
+```bash
+python3 -m venv venv
 source venv/bin/activate
+```
 
-# Install dependencies
+### 2. Install dependencies
+```bash
 pip install -r requirements.txt
+```
 
-# Run the Uvicorn server (requires DBs to be up)
+### 3. Run the Uvicorn server 
+*(Note: Requires the `postgres` and `qdrant` databases to be accessible either locally or via port-forwarding from Docker).*
+```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
+---
 
-🧪 Testing
+## 🧪 Testing
 
-Run pytest to execute unit and integration tests. Ensure DB mocks are active.
-
+Run pytest to execute unit and integration tests. Ensure your DB mocks are correctly configured.
+```bash
 pytest tests/
+```
