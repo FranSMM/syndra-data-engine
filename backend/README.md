@@ -1,4 +1,4 @@
-# ⚙️ Backend API (`NeuralNews`)
+# ⚙️ Backend API (`Syndra`)
 
 > **This module contains the core API responsible for serving news, handling search queries (Lexical + Semantic), and managing user data.**
 
@@ -22,8 +22,11 @@ Implements advanced Hybrid Search mechanisms. Combines *BM25* scores from Postgr
 ### 2. **Personalized Feed (`/api/v1/feed`)**
 Serves curated, personalized feeds based on user embedding vectors (`RecSys`).
 
-### 3. **Data Validation (`/models`)**
+### 3. **Data Validation (`/models` & `/schemas`)**
 Pydantic schemas enforcing strict data validation between the API boundaries, the Database, and the Frontend consumers.
+
+### 4. **ETL Extraction Pipeline (`/scraper` & `pipeline.py`)**
+Orchestrated by **Prefect**, this pipeline extracts raw articles from RSS feeds using **Scrapy**, validates the schemas, and asynchronously loads them into PostgreSQL safely handling duplicate content.
 
 ---
 

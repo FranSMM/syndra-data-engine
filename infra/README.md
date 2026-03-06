@@ -1,6 +1,6 @@
 # 🐳 Infrastructure & DevOps 
 
-> **This directory contains all IaC (Infrastructure as Code), container configurations, and observability setups for NeuralNews.**
+> **This directory contains all IaC (Infrastructure as Code), container configurations, and observability setups for Syndra.**
 
 ---
 

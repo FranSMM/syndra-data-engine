@@ -1,6 +1,6 @@
 # 🖥️ Frontend & UI (MVP)
 
-> **This module contains the user interface for NeuralNews, designed to consume the FastAPI backend and display semantic search results and personalized feeds.**
+> **This module contains the user interface for Syndra, designed to consume the FastAPI backend and display semantic search results and personalized feeds.**
 
 ---
 
