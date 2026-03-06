@@ -1,3 +1,6 @@
+include .env
+export
+
 # ==============================================================================
 # Infrastructure (Docker)
 # ==============================================================================
@@ -15,7 +18,7 @@ bash:
 
 # Connecting to the DB using the correct credentials from .env
 db-shell:
-	docker compose exec db psql -U neural_user -d neural_db
+	docker compose exec db psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}
 
 # ==============================================================================
 # Database Migrations (Alembic)
