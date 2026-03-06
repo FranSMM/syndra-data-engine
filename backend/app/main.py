@@ -5,7 +5,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to NeuralNews API", "docs": "/docs"}
+    return {"message": "Welcome to Syndra API", "docs": "/docs"}
 
 @app.get("/health")
 def health_check():

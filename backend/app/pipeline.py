@@ -1,0 +1,74 @@
+import subprocess
+from pathlib import Path
+from prefect import task, flow, get_run_logger
+
+# (Extraction Task) Fault-tolerant with 2 retries if the website does down
+@task(name="Extract Scrapy Spider", retries=2, retry_delay_seconds=10)
+def run_extraction():
+    logger = get_run_logger()
+    logger.info("Starting Scrapy extraction...")
+
+    scraper_dir = Path(__file__).parent / "scraper"
+
+    # Run Scrapy isolating its asynchronous motor (Twisted)
+    result = subprocess.run(
+        ["scrapy", "crawl", "elpais_rss", "-O", "test_output.json"],
+        cwd=scraper_dir,
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        logger.error(f"Critical failure in Scrapy: {result.stderr}")
+        raise RuntimeError("Extraction node failed")
+
+    logger.info("Successfull extraction. JSON generated.")
+
+# (Load Task) Idempotent - Safe to re-run
+@task(name="Load: PostgreSQL async")
+def run_load():
+    logger = get_run_logger()
+    logger.info("Starting async load to DB...")
+
+    backend_dir = Path(__file__).parent.parent
+
+    # Run the async loader
+    result = subprocess.run(
+        ["python", "-m", "app.scraper.load_to_db"],
+        cwd=backend_dir,
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        logger.error(f"Critical failure in Load: {result.stderr}")
+        raise RuntimeError("Load node failed")
+
+    logger.info(f"Successfull load to DB: \n{result.stderr}\n{result.stdout}")
+
+# Master Flow (DAG)
+@flow(name="ETL Pipeline: Syndra Raw Ingestion")
+def etl_flow():
+    logger = get_run_logger()
+    logger.info("Waking up the ETL brain...")
+
+# Strict definition of the sequence: Extract -> Validate (Scrapy) -> Load (SQLAlchemy)
+    run_extraction()
+    run_load()   
+
+    logger.info("ETL Pipeline completed successfully.")
+
+# Entry point for Prefect UI
+if __name__ == "__main__":
+    # To run it manually once (testing), uncomment the following line:
+    etl_flow() 
+
+    """
+    # To leave it running automatically (Production):
+    etl_flow.serve(
+        name="neuralnews-nightly-ingestion",
+        cron="0 3 * * *", # Runs every day at 3:00 AM
+        tags=["neuralnews", "etl", "production"],
+        description="Automated nightly ingestion of raw news into PostgreSQL"
+    )
+    """
