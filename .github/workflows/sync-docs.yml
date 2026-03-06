@@ -1,0 +1,54 @@
+name: Sync Docs to Public Repo
+
+on:
+  push:
+    branches:
+      - main  
+    paths:
+      - 'docs/**'
+      - 'README.md'
+
+jobs:
+  sync_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Private Repo
+        uses: actions/checkout@v4
+        with:
+          path: source-repo
+
+      - name: Checkout Public Repo
+        uses: actions/checkout@v4
+        with:
+          repository: FranSMM/syndra-docs
+          token: ${{ secrets.DOCS_SYNC_TOKEN }}
+          path: target-repo
+
+      - name: Copy Files and Add Disclaimer
+        run: |
+          # 1. Copy the docs folder
+          cp -r source-repo/docs/ target-repo/
+          
+          # 2. Write your disclaimer into the empty public README
+          echo "> ⚠️ **Note:** The actual codebase for Syndra is currently kept in a **private monorepo** as it is in active development." > target-repo/README.md
+          echo ">" >> target-repo/README.md
+          echo "> This public repository serves as the **Engineering & Architecture Log**. Here you will find the system architecture, ADRs (Architecture Decision Records), and troubleshooting logs that demonstrate my system design and problem-solving skills." >> target-repo/README.md
+          echo "" >> target-repo/README.md
+          
+          # 3. Append the rest of your private README right below the disclaimer!
+          cat source-repo/README.md >> target-repo/README.md
+
+      - name: Commit and Push to Public Repo
+        run: |
+          cd target-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          
+          # Only commit if there are actual changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Automated synchronization of documentation"
+            git push origin main
+          else
+            echo "No changes to sync"
+          fi
