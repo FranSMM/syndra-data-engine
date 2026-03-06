@@ -13,3 +13,7 @@ build/
 *.egg-info/
 
 /data
+*.session.sql
+
+test_output.json
+app/scraper/test_output.json

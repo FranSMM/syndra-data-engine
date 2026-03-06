@@ -3,7 +3,7 @@ from pydantic import PostgresDsn, computed_field
 from pydantic_core import MultiHostUrl
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "NeuralNews"
+    PROJECT_NAME: str = "Syndra"
     API_V1_STR: str = "/api/v1"
     
     # Base de datos (Postgres)
