@@ -3,7 +3,7 @@ name: Sync Docs to Public Repo
 on:
   push:
     branches:
-      - main  
+      - main
     paths:
       - 'docs/**'
       - 'README.md'
