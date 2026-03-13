@@ -1,34 +1,41 @@
 # 🐳 Infrastructure & DevOps 
 
-> **This directory contains all IaC (Infrastructure as Code), container configurations, and observability setups for Syndra.**
+> **This directory contains all IaC (Infrastructure as Code), container configurations, and platform setups for the Syndra DaaS environment.**
 
 ---
 
-## 🗺 Topology
+## 🗺 Docker-First Topology
 
-The root `docker-compose.yml` defines the following critical services:
+Syndra utilizes a strict Docker-First monorepo approach, containerizing all dependencies to ensure parity across development, staging, and production. The root `docker-compose.yml` spins up the complete platform ecosystem:
 
-- **🕸️ api:** The FastAPI backend.
-- **🐘 postgres:** The Relational Database (`Port 5432`). Stores raw articles, users, and metadata.
-- **📐 qdrant:** The Vector Database (`Port 6333`). Stores article embeddings and user vectors.
-- **⚡ redis:** Caching layer and rate-limiting backend.
-- ** orchestrator:** `prefect-server` data pipeline orchestrator.
-- **📈 metrics (Phase 6):** `prometheus` & `grafana` observability stack.
+- **🕸️ api:** The FastAPI asynchronous backend serving financial data endpoints.
+- **🐘 postgres:** The Relational Database (`Port 5432`). Stores raw financial text, metadata, and sentiment aggregations.
+- **📐 qdrant:** The Vector Database (`Port 6333`). Stores document embeddings for semantic search and operational fast-retrieval.
+- ** orchestrator:** `prefect-server` data pipeline orchestrator managing ETL scheduling and pipeline state.
+- **⚡ redis:** High-speed caching layer for API responses and rate-limiting.
+
+---
+
+## 🧠 Local Edge Inference
+
+To ensure strict data privacy and eliminate recurring cloud API costs, the system's NLP workload (sentiment analysis, ticker extraction via sentence-transformers/GGUF) is executed locally. 
+
+The architecture is explicitly optimized to run efficiently on **WSL2 / Edge hardware**, processing batch inference directly against the containerized data nodes without requiring external REST calls to third-party LLM providers.
 
 ---
 
 ## 🗄 Volumes & Persistence
 
-Local directory volumes inside `./data` are used to ensure data persistence across container restarts:
+Local directory volumes inside `./data` are utilized for robust data persistence across container restarts:
 
 ```text
 data/
-├── postgres/          # Relational data storage
+├── postgres/          # Relational financial data storage
 ├── qdrant/            # Vector embeddings storage
 └── grafana/           # Dashboard configurations (Future)
 ```
 
-> ⚠️ **Warning:** Never delete these directories in production unless performing a deliberate hard reset.
+> ⚠️ **Warning:** Never delete these directories in production unless performing a deliberate hard wipe of the data tier.
 
 ---
 
@@ -38,7 +45,7 @@ Refer to `.env.example` in the root directory. Critical variables include:
 
 - `DATABASE_URL`
 - `QDRANT_HOST`
-- `JWT_SECRET_KEY`
+- `API_KEY_SECRET`
 
 ---
 
@@ -46,6 +53,6 @@ Refer to `.env.example` in the root directory. Critical variables include:
 
 - **Grafana Dashboard:** `http://localhost:3000` *(Default credentials mapped in `.env`)*
 - **Key Metrics to Track:**
-  - API Latency (p95)
-  - VRAM usage
-  - ETL pipeline success rate
+  - API Latency (p95) for data clients
+  - Local Vector/GGUF inference times & VRAM utilization
+  - Prefect ETL pipeline success rates
