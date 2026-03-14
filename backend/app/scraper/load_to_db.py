@@ -1,8 +1,6 @@
 import json
 import asyncio
-import hashlib
 import logging
-import os
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +10,8 @@ from app.models import RawArticle
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def generate_hash(url: str) -> str:
-    """Generate SHA256 hash based on the article URL for deduplication."""
-    return hashlib.sha256(url.encode('utf-8')).hexdigest()
-
 async def load_articles(file_path: str):
-    """ Reads the validated JSON and loads it into the raw_articles table."""
+    """Reads the validated JSON and loads it into the raw_articles table."""
     try:
         with open(file_path, 'r') as f:
             articles_data = json.load(f)
@@ -30,20 +24,20 @@ async def load_articles(file_path: str):
             duplicate_count = 0
 
             for data in articles_data:
-                # Generate unique fingerprint
-                article_hash = generate_hash(data['url'])
+                # 1. Use the pre-calculated hash from Pydantic
+                article_hash = data['id']
 
-                # Extract payload and inject title so it isn't lost
+                # 2. Extract payload and inject top-level fields so they aren't lost
                 article_payload = data.get('payload', {})
                 article_payload['title'] = data.get('title')
+                article_payload['published_at'] = data.get('published_at') # CRITICAL: Save the timestamp
 
-                # Instantiate the SQLAlchemy model
+                # 3. Instantiate the SQLAlchemy model
                 db_article = RawArticle(
                     url=data['url'],
                     source=data['source'],
                     content_hash=article_hash,
                     payload=article_payload
-
                     # ingestion_state and created_at are handled by server_default
                 )
 

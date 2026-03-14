@@ -12,7 +12,7 @@ def run_extraction():
 
     # Run Scrapy isolating its asynchronous motor (Twisted)
     result = subprocess.run(
-        ["scrapy", "crawl", "elpais_rss", "-O", "test_output.json"],
+        ["scrapy", "crawl", "yahoo_finance", "-O", "test_output.json"],
         cwd=scraper_dir,
         capture_output=True,
         text=True
@@ -24,7 +24,7 @@ def run_extraction():
 
     logger.info("Successfull extraction. JSON generated.")
 
-# (Load Task) Idempotent - Safe to re-run
+# (Load Task) - Safe to re-run
 @task(name="Load: PostgreSQL async")
 def run_load():
     logger = get_run_logger()
@@ -47,12 +47,12 @@ def run_load():
     logger.info(f"Successfull load to DB: \n{result.stderr}\n{result.stdout}")
 
 # Master Flow (DAG)
-@flow(name="ETL Pipeline: Syndra Raw Ingestion")
+@flow(name="ETL Pipeline: Syndra Financial Ingestion")
 def etl_flow():
     logger = get_run_logger()
     logger.info("Waking up the ETL brain...")
 
-# Strict definition of the sequence: Extract -> Validate (Scrapy) -> Load (SQLAlchemy)
+    # Strict definition of the sequence: Extract -> Validate (Scrapy) -> Load (SQLAlchemy)
     run_extraction()
     run_load()   
 
@@ -66,9 +66,9 @@ if __name__ == "__main__":
     """
     # To leave it running automatically (Production):
     etl_flow.serve(
-        name="neuralnews-nightly-ingestion",
+        name="syndra-nightly-ingestion", 
         cron="0 3 * * *", # Runs every day at 3:00 AM
-        tags=["neuralnews", "etl", "production"],
-        description="Automated nightly ingestion of raw news into PostgreSQL"
+        tags=["syndra", "fintech", "etl", "production"], 
+        description="Automated nightly ingestion of financial news into PostgreSQL"
     )
     """

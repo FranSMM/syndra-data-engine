@@ -34,7 +34,7 @@ migrate:
 # Manual ETL Pipeline (Scrapy + Pydantic + SQLAlchemy)
 # ==============================================================================
 crawl:
-	docker compose exec backend bash -c "cd app/scraper && export PYTHONPATH=/code && scrapy crawl elpais_rss -O test_output.json"
+	docker compose exec backend bash -c "cd app/scraper && export PYTHONPATH=/code && scrapy crawl yahoo_finance -O test_output.json"
 
 load:
 	docker compose exec backend python -m app.scraper.load_to_db
