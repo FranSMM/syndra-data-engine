@@ -8,25 +8,37 @@ services:
       - .env
     ports:
       - "5433:5432"
+    healthcheck:
+      # Checks if the DB is ready to accept connections
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   qdrant:
-    image: qdrant/qdrant:latest
-    restart: always
+    image: qdrant/qdrant:v1.17.0
+    container_name: syndra_qdrant
+    restart: unless-stopped
     ports:
-      - "6333:6333" # Puerto de la API REST de Qdrant
+      - "6333:6333"
+      - "6334:6334"
     volumes:
       - ./data/qdrant:/qdrant/storage
 
   backend:
     build: ./backend
+    # Restarts the container if it crashes
+    restart: unless-stopped
     volumes:
-      - ./backend/app:/code/app # Hot-reloading
-      - ./backend/alembic:/code/alembic # Sincroniza migraciones generadas
+      - ./backend/app:/code/app
+      - ./backend/alembic:/code/alembic
       - ./backend/alembic.ini:/code/alembic.ini
     ports:
       - "8000:8000"
     env_file:
       - .env
     depends_on:
-      - db
-      - qdrant # El backend ahora espera a la DB relacional y a la vectorial
+      db:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
