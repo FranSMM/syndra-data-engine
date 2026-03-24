@@ -46,15 +46,49 @@ def run_load():
 
     logger.info(f"Successfull load to DB: \n{result.stderr}\n{result.stdout}")
 
+@task(name="MLOps: Sentiment Enrichment", retries=1)
+def run_enrichment():
+    logger = get_run_logger()
+    logger.info("Starting local ML inference (FinBERT)...")
+
+    backend_dir = Path(__file__).parent.parent
+
+    # Run the enrichment script in an isolated process
+    # Architecture benefit: 0S reclaims the 400MB RAM when the process dies.
+    result = subprocess.run(
+        ["python", "-m", "app.ml.enrich_sentiment"],
+        cwd=backend_dir,
+        capture_output=True,
+        text=True
+    ) 
+
+    if result.returncode != 0:
+        logger.error(f"Critical failure in Enrichment: {result.stderr}")
+        raise RuntimeError("Enrichment node failed")
+
+    if result.stdout:
+        logger.info(f"Enrichment stdout: \n{result.stdout}")
+    if result.stderr:
+        logger.error(f"Enrichment stderr (model logs/warnings): \n{result.stderr}")
+
+    logger.info("Successfull enrichment. Scores calculated.")
+
+
+
 # Master Flow (DAG)
 @flow(name="ETL Pipeline: Syndra Financial Ingestion")
 def etl_flow():
     logger = get_run_logger()
-    logger.info("Waking up the ETL brain...")
+    logger.info("Waking up the Syndra DaaS Engine...")
 
     # Strict definition of the sequence: Extract -> Validate (Scrapy) -> Load (SQLAlchemy)
     run_extraction()
+
+    # Bronze Layer
     run_load()   
+
+    # Silver Layer
+    run_enrichment()
 
     logger.info("ETL Pipeline completed successfully.")
 
