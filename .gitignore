@@ -11,9 +11,11 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+*context.md
 
 /data
 *.session.sql
 
 test_output.json
 app/scraper/test_output.json
+
