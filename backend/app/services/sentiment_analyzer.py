@@ -3,6 +3,7 @@
 
 import logging
 import torch
+import re
 from transformers import pipeline
 
 logger = logging.getLogger(__name__)
@@ -26,31 +27,43 @@ class FinancialSentimentAnalyzer:
             truncation=True,
 
             # max_length is the maximum number of tokens the model can process
-            max_length=512
+            max_length=512,
+
+            # top_k=None tells the model to return all possible outputs (positive, negative, neutral), not just the winner one
+            top_k=None
         )
+
+        self.yahoo_ticker_pattern = re.compile(r"\(([A-Z]{1,5})\)")
+
         logger.info("ML model loaded successfully")
+    
+    def extract_tickers(self, title: str, description: str) -> list[str]:
+        combined_text = f"{title} {description}"
+        matches = self.yahoo_ticker_pattern.findall(combined_text)
+        return list(set(matches))
 
     def analyze(self, text: str) -> dict:
         try:
             if not text:
-                return {"sentiment_label": "neutral", "sentiment_score": 0.0}
+                return {
+                    "sentiment_label": "neutral", 
+                    "sentiment_score": 0.0
+                }
 
+            # Example output: [{'label': 'positive', 'score': 0.98}, {'label': 'neutral', 'score': 0.01}, {'label': 'negative', 'score': 0.01}]
             result = self.classifier(text)[0]
 
+            scores = {item['label']: item['score'] for item in result}
+
+            # Quant Formula: (Positive - Negative)  (-1.0 to 1.0)
+            impact_score = round((scores['positive'] - scores['negative']), 4)
+
             # label is either 'positive', 'negative', 'neutral'
-            label = result['label'].lower()
-
-            # convert to float between -1 and 1
-            score = round(result['score'], 4)
-
-            if label == "negative":
-                score = -score
-            elif label == "neutral":
-                score = 0.0
+            dominant_label = max(scores, key=scores.get)
 
             return {
-                "sentiment_label": label,
-                "sentiment_score": score
+                "sentiment_label": dominant_label,
+                "sentiment_score": impact_score
             }
         except Exception as e:
             logger.error(f"Inference failed: {e}", exc_info=True) # exc_info=True logs the full stack trace

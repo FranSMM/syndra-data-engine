@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 # Initialize the analyzer once (singleton pattern)
 analyzer = FinancialSentimentAnalyzer()
 
-async def run_sentiment_enrichment(batch_size: int = 20):
+async def run_sentiment_enrichment(batch_size: int = 200):
     async with AsyncSessionLocal() as session:
-        query = select(RawArticle).where(RawArticle.ingestion_state == "pending").limit(batch_size)
+        query = select(RawArticle).where(RawArticle.ingestion_state == "loaded").limit(batch_size)
         result = await session.execute(query)
 
         # .scalars() returns the first element of each row (the RawArticle object)
@@ -31,12 +31,17 @@ async def run_sentiment_enrichment(batch_size: int = 20):
         for article in articles:
 
             # 1. Prepare text
-            text_to_analyze = article.payload.get('description') or article.payload.get('title', '')
+            title = article.payload.get('title') or ''
+            description = article.payload.get('description') or ''
+            text_to_analyze = description or title
             
             # 2. Analyze sentiment
             sentiment_data = analyzer.analyze(text_to_analyze)
+            
+            # 3. Extract tickers
+            extracted_tickers = analyzer.extract_tickers(title, description)
 
-            # 3. Update article with sentiment data
+            # 4. Update article with sentiment data
             if sentiment_data['sentiment_label'] is None:
                 logger.warning(f"Skipping article {article.id} - inference returned None")
                 continue
@@ -47,6 +52,7 @@ async def run_sentiment_enrichment(batch_size: int = 20):
             # Update the payload
             article.payload['financial_metadata']['sentiment_label'] = sentiment_data['sentiment_label']
             article.payload['financial_metadata']['sentiment_score'] = sentiment_data['sentiment_score']
+            article.payload['financial_metadata']['tickers'] = extracted_tickers
 
             # Mark the payload as modified
             flag_modified(article, "payload")
@@ -61,4 +67,4 @@ async def run_sentiment_enrichment(batch_size: int = 20):
             logger.error(f"Database commit failed during enrichment: {e}", exc_info=True)
                 
 if __name__ == "__main__":
-    asyncio.run(run_sentiment_enrichment(batch_size=50))
+    asyncio.run(run_sentiment_enrichment(batch_size=200))
