@@ -44,4 +44,4 @@ etl-test: crawl load
 
 # Prefect Pipeline
 run-etl:
-	docker compose exec backend python -m app.pipeline
+	docker compose exec backend python app/pipeline.py
