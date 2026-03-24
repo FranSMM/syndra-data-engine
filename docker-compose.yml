@@ -27,12 +27,24 @@ services:
 
   backend:
     build: ./backend
+    container_name: syndra_backend
     # Restarts the container if it crashes
     restart: unless-stopped
     volumes:
       - ./backend/app:/code/app
       - ./backend/alembic:/code/alembic
       - ./backend/alembic.ini:/code/alembic.ini
+      # Cache for ML models (downloaded once, persists across restarts)
+      - ./data/huggingface:/root/.cache/huggingface
+    
+    # GPU Configuration (only works on Docker Desktop with NVIDIA drivers)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     ports:
       - "8000:8000"
     env_file:
