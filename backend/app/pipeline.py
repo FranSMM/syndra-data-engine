@@ -73,6 +73,30 @@ def run_enrichment():
 
     logger.info("Successfull enrichment. Scores calculated.")
 
+@task(name="MLOps: Vector Indexing", retries=1)
+def run_vectorization():
+    logger = get_run_logger()
+    logger.info("Starting semantic vector geenration (all-MiniLM-L6-v2 on CPU)...")
+
+    backend_dir = Path(__file__).parent.parent
+
+    result = subprocess.run(
+        ["python", "-m", "app.backfill_vectors"],
+        cwd=backend_dir,
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        logger.error(f"Critical failure in Backfill: {result.stderr}")
+        raise RuntimeError("Backfill node failed")
+
+    if result.stdout:
+        logger.info(f"Vectorization stdout: \n{result.stdout}")
+    if result.stderr:
+        logger.error(f"Vectorization stderr (model logs/warnings): \n{result.stderr}")
+
+    logger.info(f"Vectorization completed: \n{result.stdout}. Qdrant is up to date.")
 
 
 # Master Flow (DAG)
@@ -84,13 +108,16 @@ def etl_flow():
     # Strict definition of the sequence: Extract -> Validate (Scrapy) -> Load (SQLAlchemy)
     run_extraction()
 
-    # Bronze Layer
+    # Bronze Layer: Extraction & Load
     run_load()   
 
-    # Silver Layer
+    # Silver Layer: Financial Sentiment Enrichment
     run_enrichment()
 
-    logger.info("ETL Pipeline completed successfully.")
+    # Gold Layer: Semantic Search Indexing
+    run_vectorization()
+
+    logger.info("ETL Pipeline completed successfully. Syndra Data is ready for API consumption.")
 
 # Entry point for Prefect UI
 if __name__ == "__main__":
