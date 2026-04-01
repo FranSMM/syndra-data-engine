@@ -15,56 +15,59 @@ analyzer = FinancialSentimentAnalyzer()
 
 async def run_sentiment_enrichment(batch_size: int = 200):
     async with AsyncSessionLocal() as session:
-        query = select(RawArticle).where(RawArticle.ingestion_state == "loaded").limit(batch_size)
-        result = await session.execute(query)
+        while True:
+            # FIX: State was erroneously set to "loaded", project context mandates "pending"
+            query = select(RawArticle).where(RawArticle.ingestion_state == "pending").limit(batch_size)
+            result = await session.execute(query)
 
-        # .scalars() returns the first element of each row (the RawArticle object)
-        articles = result.scalars().all()
+            # .scalars() returns the first element of each row (the RawArticle object)
+            articles = result.scalars().all()
 
-        if not articles:
-            logger.info("No pending articles found for enrichment. Exiting cleanly.")
-            return
-        
-        logger.info(f"Processing batch of {len(articles)} articles...")
-        processed_count = 0
-
-        for article in articles:
-
-            # 1. Prepare text
-            title = article.payload.get('title') or ''
-            description = article.payload.get('description') or ''
-            text_to_analyze = description or title
+            if not articles:
+                logger.info("No more pending articles found for enrichment. Exiting cleanly.")
+                break
             
-            # 2. Analyze sentiment
-            sentiment_data = analyzer.analyze(text_to_analyze)
-            
-            # 3. Extract tickers
-            extracted_tickers = analyzer.extract_tickers(title, description)
+            logger.info(f"Processing batch of {len(articles)} articles...")
+            processed_count = 0
 
-            # 4. Update article with sentiment data
-            if sentiment_data['sentiment_label'] is None:
-                logger.warning(f"Skipping article {article.id} - inference returned None")
-                continue
+            for article in articles:
 
-            if 'financial_metadata' not in article.payload:
-                article.payload['financial_metadata'] = {}
+                # 1. Prepare text
+                title = article.payload.get('title') or ''
+                description = article.payload.get('description') or ''
+                text_to_analyze = description or title
+                
+                # 2. Analyze sentiment
+                sentiment_data = analyzer.analyze(text_to_analyze)
+                
+                # 3. Extract tickers
+                extracted_tickers = analyzer.extract_tickers(title, description)
 
-            # Update the payload
-            article.payload['financial_metadata']['sentiment_label'] = sentiment_data['sentiment_label']
-            article.payload['financial_metadata']['sentiment_score'] = sentiment_data['sentiment_score']
-            article.payload['financial_metadata']['tickers'] = extracted_tickers
+                # 4. Update article with sentiment data
+                if sentiment_data['sentiment_label'] is None:
+                    logger.warning(f"Skipping article {article.id} - inference returned None")
+                    continue
 
-            # Mark the payload as modified
-            flag_modified(article, "payload")
-            article.ingestion_state = 'processed'
-            processed_count += 1
+                if 'financial_metadata' not in article.payload:
+                    article.payload['financial_metadata'] = {}
 
-        try:
-            await session.commit()
-            logger.info(f"Successfully enriched and committed {processed_count} articles.")
-        except Exception as e:
-            await session.rollback()
-            logger.error(f"Database commit failed during enrichment: {e}", exc_info=True)
+                # Update the payload
+                article.payload['financial_metadata']['sentiment_label'] = sentiment_data['sentiment_label']
+                article.payload['financial_metadata']['sentiment_score'] = sentiment_data['sentiment_score']
+                article.payload['financial_metadata']['tickers'] = extracted_tickers
+
+                # Mark the payload as modified
+                flag_modified(article, "payload")
+                article.ingestion_state = 'processed'
+                processed_count += 1
+
+            try:
+                await session.commit()
+                logger.info(f"Successfully enriched and committed {processed_count} articles.")
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Database commit failed during enrichment: {e}", exc_info=True)
+                break
                 
 if __name__ == "__main__":
     asyncio.run(run_sentiment_enrichment(batch_size=200))

@@ -31,6 +31,7 @@ async def load_articles(file_path: str):
                 article_payload = data.get('payload', {})
                 article_payload['title'] = data.get('title')
                 article_payload['published_at'] = data.get('published_at') # CRITICAL: Save the timestamp
+                article_payload['source'] = data.get('source')
 
                 # 3. Instantiate the SQLAlchemy model
                 db_article = RawArticle(
