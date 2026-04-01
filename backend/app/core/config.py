@@ -5,6 +5,12 @@ from pydantic_core import MultiHostUrl
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Syndra"
     API_V1_STR: str = "/api/v1"
+
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
     
     # Base de datos (Postgres)
     POSTGRES_USER: str
@@ -14,12 +20,6 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str
-
-    model_config = SettingsConfigDict(
-        env_file="../.env",
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
 
     # Pydantic Fail-Fast validation for the DB URL
     @computed_field
@@ -36,6 +36,17 @@ class Settings(BaseSettings):
         ).unicode_string()
 
     # Base de datos vectorial (Qdrant)
-    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_HOST: str = "localhost"
+    QDRANT_PORT: int = 6333
+    QDRANT_COLLECTION_NAME: str = "financial_signals"
+    QDRANT_VECTOR_SIZE: int = 384
+
+    @computed_field
+    @property
+    def QDRANT_URL(self) -> str:
+        return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
+
+    # Embedding Model Configuration
+    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
 
 settings = Settings()
