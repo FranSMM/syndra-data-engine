@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 from prefect import task, flow, get_run_logger
+from datetime import timedelta
 
 # (Extraction Task) Fault-tolerant with 2 retries if the website does down
 @task(name="Extract Scrapy Spider", retries=2, retry_delay_seconds=10)
@@ -121,15 +122,14 @@ def etl_flow():
 
 # Entry point for Prefect UI
 if __name__ == "__main__":
+    """
     # To run it manually once (testing), uncomment the following line:
     etl_flow() 
+    """
 
-    """
-    # To leave it running automatically (Production):
+    # Schedule the flow to run every hour
     etl_flow.serve(
-        name="syndra-nightly-ingestion", 
-        cron="0 3 * * *", # Runs every day at 3:00 AM
-        tags=["syndra", "fintech", "etl", "production"], 
-        description="Automated nightly ingestion of financial news into PostgreSQL"
+        name="syndra-hourly-deployment",
+        interval=timedelta(minutes=60),
+        description="Syndra's end-to-end pipeline: Extraction, NLP, and Vectorization."
     )
-    """
