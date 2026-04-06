@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: syndra_postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - syndra_pgdata:/var/lib/postgresql/data
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.17.0
+    container_name: syndra_qdrant
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - syndra_qdrant_data:/qdrant/storage
+    networks:
+      - syndra_net
+    restart: unless-stopped
+
+  etl_worker:
+    # Use the pre-built image from your registry
+    image: ghcr.io/fransmm/syndra-etl:latest 
+    container_name: syndra_etl
+    env_file: .env
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  syndra_net:
+    driver: bridge
+
+volumes:
+  syndra_pgdata:
+  syndra_qdrant_data:
