@@ -34,6 +34,8 @@ services:
     # Use the pre-built image from your registry
     image: ghcr.io/fransmm/syndra-etl:latest 
     container_name: syndra_etl
+    ports:
+      - "127.0.0.1:8000:8000" 
     env_file: ../.env
     networks:
       - syndra_net
