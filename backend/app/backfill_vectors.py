@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import uuid
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from qdrant_client.http.models import PointStruct
 
 from app.db.session import AsyncSessionLocal
@@ -22,7 +22,12 @@ async def run_backfill():
         # Fetch all articles that don't have vectors yet
         # B2B Data contract: Only index clean, enriched data
         stmt = select(RawArticle).where(
-            RawArticle.ingestion_state == 'processed'
+            RawArticle.ingestion_state == 'processed',
+            or_(
+                # .op('->>') is used to extract a JSON field as text
+                RawArticle.payload.op('->>')('is_vectorized') == None,
+                RawArticle.payload.op('->>')('is_vectorized') == 'false'
+            )
         )
         result = await session.execute(stmt)
         articles = result.scalars().all()
@@ -74,7 +79,16 @@ async def run_backfill():
                 wait=True
             )
 
-            logger.info(f"Successfully upserted {len(points)} points to Qdrant.")
+            # Update PostgreSQL payload flag after successful vectorization
+            for article in batch:
+                article_payload = dict(article.payload)
+                article_payload["is_vectorized"] = True
+                article.payload = article_payload
+                session.add(article)
+
+            await session.commit()
+
+            logger.info(f"Successfully upserted {len(points)} points to Qdrant and marked as vectorized in DB.")
 
     logger.info("Backfill completed successfully.")
 
