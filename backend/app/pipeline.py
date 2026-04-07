@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 from prefect import task, flow, get_run_logger
 from datetime import timedelta
+import sys
 
 # (Extraction Task) Fault-tolerant with 2 retries if the website does down
 @task(name="Extract Scrapy Spider", retries=2, retry_delay_seconds=10)
@@ -122,14 +123,16 @@ def etl_flow():
 
 # Entry point for Prefect UI
 if __name__ == "__main__":
-    """
-    # To run it manually once (testing), uncomment the following line:
-    etl_flow() 
-    """
-
-    # Schedule the flow to run every hour
-    etl_flow.serve(
-        name="syndra-hourly-deployment",
-        interval=timedelta(minutes=60),
-        description="Syndra's end-to-end pipeline: Extraction, NLP, and Vectorization."
-    )
+    # Manual execution for recovery
+    # e.g.: docker exec -it syndra_scheduler python -m app.pipeline --manual
+    if "--manual" in sys.argv:
+        print("Running pipeline manually (One-Off Run)...")
+        etl_flow()
+    else:
+        # Normal scheduler mode
+        print("Starting Prefect scheduler (Execution every 60m)...")
+        etl_flow.serve(
+            name="syndra-hourly-deployment",
+            interval=timedelta(minutes=60),
+            description="Syndra's end-to-end pipeline: Extraction, NLP, and Vectorization."
+        )
