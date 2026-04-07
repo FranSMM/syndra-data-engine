@@ -31,10 +31,10 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/fransmm/syndra-etl:latest 
+    image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_api
     ports:
-      - "127.0.0.1:8000:8000" 
+      - "127.0.0.1:8000:8000"
     env_file: ../.env
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
     networks:
@@ -53,8 +53,10 @@ services:
     container_name: syndra_prefect_server
     command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
     env_file: ../.env
+    environment:
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
     ports:
-      - "127.0.0.1:4200:4200" 
+      - "127.0.0.1:4200:4200"
     networks:
       - syndra_net
     restart: unless-stopped
@@ -67,7 +69,7 @@ services:
           memory: 512M
 
   scheduler:
-    image: ghcr.io/fransmm/syndra-etl:latest 
+    image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_scheduler
     env_file: ../.env
     command: ["python", "-m", "app.pipeline"]
