@@ -1,4 +1,3 @@
-# .gitignore
 __pycache__/
 *.pyc
 .env
@@ -12,10 +11,10 @@ dist/
 build/
 *.egg-info/
 *context.md
+.agents/
 
 /data
 *.session.sql
 
 test_output.json
 app/scraper/test_output.json
-
