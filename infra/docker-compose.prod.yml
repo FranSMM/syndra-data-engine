@@ -10,6 +10,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - syndra_pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/postgres-init.sh
     networks:
       - syndra_net
     restart: unless-stopped
@@ -43,6 +44,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      qdrant:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -79,6 +82,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      prefect_server:
+        condition: service_started
+      qdrant:
+        condition: service_started
     deploy:
       resources:
         limits:
