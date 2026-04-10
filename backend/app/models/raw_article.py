@@ -14,6 +14,7 @@ class RawArticle(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     url: Mapped[str] = mapped_column(String, index=True, nullable=False)
     source: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(50), server_default="rss_feed", nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     ingestion_state: Mapped[str] = mapped_column(String(20), server_default="pending", nullable=False) # pending, processed, failed

@@ -37,6 +37,7 @@ async def load_articles(file_path: str):
                 db_article = RawArticle(
                     url=data['url'],
                     source=data['source'],
+                    source_type=data.get('source_type', 'rss_feed'),
                     content_hash=article_hash,
                     payload=article_payload
                     # ingestion_state and created_at are handled by server_default

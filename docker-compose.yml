@@ -1,7 +1,7 @@
 name: syndra-data-engine
 
 services:
-  db:
+  postgres:
     image: postgres:15-alpine
     restart: always
     volumes:
@@ -53,7 +53,7 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
       qdrant:
         condition: service_started

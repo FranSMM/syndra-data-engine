@@ -30,8 +30,11 @@ class ScrapedArticle(BaseModel):
     # Article's title (is technically part of the payload, but we keep it here)
     title: str = Field(..., min_length=5)
 
-    # Newspaper's identifies (e.g., 'el_pais')
-    source: str = Field(..., description="Newspaper's identifier", min_length=2, max_length=100)
+    # Client-defined or Spider-defined generic source name (e.g., 'reuters_wire', 'client1_rss')
+    source: str = Field(..., description="Custom identifier for the source", min_length=2, max_length=100)
+
+    # Differentiate between rss, sec_filing, twitter, etc.
+    source_type: str = Field(default="rss_feed", description="Type of the ingestion source")
 
     published_at: datetime = Field(..., description="Article's publication timestamp")
 

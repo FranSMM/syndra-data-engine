@@ -1,30 +1,58 @@
 import subprocess
+import json
 from pathlib import Path
 from prefect import task, flow, get_run_logger
 from datetime import timedelta
 import sys
 
-# (Extraction Task) Fault-tolerant with 2 retries if the website does down
-@task(name="Extract Scrapy Spider", retries=2, retry_delay_seconds=10)
+FEEDS_PATH = Path(__file__).parent / "scraper" / "test_output.json"
+FEEDS_CONFIG_PATH = Path(__file__).parent.parent / "data" / "feeds.json"
+
+def _load_feeds() -> list[dict]:
+    """Load and filter enabled feeds from the BYOS feeds.json config."""
+    if not FEEDS_CONFIG_PATH.exists():
+        raise FileNotFoundError(f"feeds.json not found at {FEEDS_CONFIG_PATH}")
+    with open(FEEDS_CONFIG_PATH, 'r') as f:
+        feeds = json.load(f)
+    return [feed for feed in feeds if feed.get("enabled", True)]
+
+
+# (Extraction Task) Fault-tolerant with 2 retries if the website goes down
+@task(name="Extract: Generic RSS Spiders", retries=2, retry_delay_seconds=10)
 def run_extraction():
     logger = get_run_logger()
-    logger.info("Starting Scrapy extraction...")
+
+    feeds = _load_feeds()
+    logger.info(f"BYOS: {len(feeds)} active feed(s) loaded from feeds.json.")
 
     scraper_dir = Path(__file__).parent / "scraper"
 
-    # Run Scrapy isolating its asynchronous motor (Twisted)
-    result = subprocess.run(
-        ["scrapy", "crawl", "yahoo_finance", "-O", "test_output.json"],
-        cwd=scraper_dir,
-        capture_output=True,
-        text=True
-    )
+    for feed in feeds:
+        feed_name = feed["name"]
+        feed_url = feed["url"]
+        source_type = feed.get("source_type", "rss_feed")
 
-    if result.returncode != 0:
-        logger.error(f"Critical failure in Scrapy: {result.stderr}")
-        raise RuntimeError("Extraction node failed")
+        logger.info(f"Crawling source '{feed_name}' ({source_type}): {feed_url}")
 
-    logger.info("Successfull extraction. JSON generated.")
+        # Run Scrapy with dynamic arguments, appending output from each feed
+        result = subprocess.run(
+            [
+                "scrapy", "crawl", "generic_rss",
+                "-a", f"target_url={feed_url}",
+                "-a", f"source_name={feed_name}",
+                "-a", f"source_type={source_type}",
+                "-O", "test_output.json"
+            ],
+            cwd=scraper_dir,
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f"Scrapy failed for source '{feed_name}': {result.stderr}")
+            raise RuntimeError(f"Extraction failed for source: {feed_name}")
+
+    logger.info("All BYOS sources extracted successfully.")
 
 # (Load Task) - Safe to re-run
 @task(name="Load: PostgreSQL async")
