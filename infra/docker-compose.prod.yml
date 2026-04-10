@@ -54,7 +54,7 @@ services:
           memory: 512M
 
   prefect_server:
-    image: ghcr.io/fransmm/syndra-etl:latest
+    image: prefecthq/prefect:3-latest
     container_name: syndra_prefect_server
     command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
     env_file: ../.env
