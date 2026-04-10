@@ -41,4 +41,4 @@ class Article(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
     # Relationship back to Bronze for full payload access when needed
-    raw_article: Mapped["RawArticle"] = relationship("RawArticle", back_populates="articles")
+    raw_article: Mapped["RawArticle"] = relationship("RawArticle", back_populates="article")

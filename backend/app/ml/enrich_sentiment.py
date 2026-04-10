@@ -53,7 +53,8 @@ async def run_sentiment_enrichment(batch_size: int = 200):
                 published_at = None
                 if published_at_raw:
                     try:
-                        published_at = datetime.fromisoformat(published_at_raw)
+                        parsed = datetime.fromisoformat(published_at_raw)
+                        published_at = parsed.replace(tzinfo=None)
                     except (ValueError, TypeError):
                         logger.warning(f"Could not parse published_at for article {raw_article.id}")
 

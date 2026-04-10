@@ -53,7 +53,9 @@ async def run_migration(batch_size: int = 200):
             published_at = None
             if published_at_raw:
                 try:
-                    published_at = datetime.fromisoformat(published_at_raw)
+                    parsed = datetime.fromisoformat(published_at_raw)
+                    # Strip timezone to match TIMESTAMP WITHOUT TIME ZONE column
+                    published_at = parsed.replace(tzinfo=None)
                 except (ValueError, TypeError):
                     logger.warning(f"Could not parse published_at for article {raw.id}: {published_at_raw}")
 
