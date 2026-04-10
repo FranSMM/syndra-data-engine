@@ -26,6 +26,10 @@ class Article(Base):
         ForeignKey("raw_articles.id"), unique=True, index=True, nullable=False
     )
 
+    # Core article metadata (propagated from Bronze to avoid JOINs in API)
+    source: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+
     # Core article data (extracted from Bronze payload)
     title: Mapped[str] = mapped_column(String, nullable=False)
     published_at: Mapped[Optional[datetime]] = mapped_column(index=True, nullable=True)

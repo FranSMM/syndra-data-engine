@@ -63,6 +63,8 @@ async def run_sentiment_enrichment(batch_size: int = 200):
                 # 6. CREATE Silver record (instead of mutating Bronze payload)
                 silver_article = Article(
                     raw_article_id=raw_article.id,
+                    source=raw_article.source,
+                    source_type=raw_article.source_type,
                     title=title or 'Unknown',
                     published_at=published_at,
                     sentiment_label=sentiment_data['sentiment_label'],
