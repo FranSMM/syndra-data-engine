@@ -3,7 +3,6 @@
 
 import logging
 import torch
-import re
 from transformers import pipeline
 
 # STRICT CPU LIMIT: Leave 1 vCPU free for OS, Postgres, and Qdrant
@@ -43,14 +42,7 @@ class FinancialSentimentAnalyzer:
             top_k=None
         )
 
-        self.yahoo_ticker_pattern = re.compile(r"\(([A-Z]{1,5})\)")
-
         logger.info("ML model loaded successfully")
-    
-    def extract_tickers(self, title: str, description: str) -> list[str]:
-        combined_text = f"{title} {description}"
-        matches = self.yahoo_ticker_pattern.findall(combined_text)
-        return list(set(matches))
 
     def analyze(self, text: str) -> dict:
         try:
