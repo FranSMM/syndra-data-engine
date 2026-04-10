@@ -5,7 +5,7 @@ from typing import List, Optional
 class ArticleSignalDTO(BaseModel):
     """Represents a single processed article signal."""
     article_id: str = Field(..., description="Internal reference ID")
-    published_at: datetime = Field(..., description="ISO 8601 publication timestamp")
+    published_at: Optional[datetime] = Field(None, description="ISO 8601 publication timestamp")
     source: Optional[str] = Field(None, description="Origin of the news (e.g., Yahoo Finance)")
     sentiment_label: str = Field(..., description="Classification: positive, negative, neutral")
     sentiment_score: float = Field(..., ge=-1.0, le=1.0, description="Confidence score from -1.0 to 1.0")
