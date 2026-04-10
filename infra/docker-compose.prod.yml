@@ -38,7 +38,7 @@ services:
     container_name: syndra_api
     ports:
       - "127.0.0.1:8000:8000"
-    env_file: ../.env
+    env_file: .env
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
     networks:
       - syndra_net
@@ -57,7 +57,7 @@ services:
     image: prefecthq/prefect:3-latest
     container_name: syndra_prefect_server
     command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
-    env_file: ../.env
+    env_file: .env
     environment:
       - PREFECT_API_URL=http://127.0.0.1:4200/api
     ports:
@@ -76,7 +76,7 @@ services:
   scheduler:
     image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_scheduler
-    env_file: ../.env
+    env_file: .env
     command: ["python", "-m", "app.pipeline"]
     networks:
       - syndra_net
