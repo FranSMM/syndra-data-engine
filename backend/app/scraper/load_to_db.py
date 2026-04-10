@@ -1,6 +1,7 @@
 import json
 import asyncio
 import logging
+import sys
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,9 +62,12 @@ async def load_articles(file_path: str):
 from pathlib import Path
 
 if __name__ == "__main__":
-    # Ensure we use an absolute path so it works regardless of where the script is executed from
-    current_dir = Path(__file__).parent
-    output_path = current_dir / "test_output.json"
-    
-    # run the async loop
+    # Accept file path as CLI argument (used by pipeline.py per-feed)
+    # Fallback to default for backward compatibility with manual runs
+    if len(sys.argv) > 1:
+        output_path = Path(sys.argv[1])
+    else:
+        current_dir = Path(__file__).parent
+        output_path = current_dir / "test_output.json"
+
     asyncio.run(load_articles(str(output_path)))
