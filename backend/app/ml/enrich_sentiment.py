@@ -1,9 +1,11 @@
 import asyncio
 import logging
+from datetime import datetime
+
 from sqlalchemy import select
-from sqlalchemy.orm.attributes import flag_modified
 from app.db.session import AsyncSessionLocal
 from app.models.raw_article import RawArticle
+from app.models.article import Article
 from app.services.sentiment_analyzer import FinancialSentimentAnalyzer
 
 logging.basicConfig(level=logging.INFO)
@@ -16,11 +18,9 @@ analyzer = FinancialSentimentAnalyzer()
 async def run_sentiment_enrichment(batch_size: int = 200):
     async with AsyncSessionLocal() as session:
         while True:
-            # FIX: State was erroneously set to "loaded", project context mandates "pending"
+            # Read pending articles from Bronze (immutable read)
             query = select(RawArticle).where(RawArticle.ingestion_state == "pending").limit(batch_size)
             result = await session.execute(query)
-
-            # .scalars() returns the first element of each row (the RawArticle object)
             articles = result.scalars().all()
 
             if not articles:
@@ -30,40 +30,51 @@ async def run_sentiment_enrichment(batch_size: int = 200):
             logger.info(f"Processing batch of {len(articles)} articles...")
             processed_count = 0
 
-            for article in articles:
+            for raw_article in articles:
 
-                # 1. Prepare text
-                title = article.payload.get('title') or ''
-                description = article.payload.get('description') or ''
+                # 1. Prepare text from Bronze payload (read-only access)
+                title = raw_article.payload.get('title') or ''
+                description = raw_article.payload.get('description') or ''
                 text_to_analyze = description or title
                 
-                # 2. Analyze sentiment
+                # 2. Run FinBERT inference
                 sentiment_data = analyzer.analyze(text_to_analyze)
                 
                 # 3. Extract tickers
                 extracted_tickers = analyzer.extract_tickers(title, description)
 
-                # 4. Update article with sentiment data
+                # 4. Skip if inference returned None
                 if sentiment_data['sentiment_label'] is None:
-                    logger.warning(f"Skipping article {article.id} - inference returned None")
+                    logger.warning(f"Skipping article {raw_article.id} - inference returned None")
                     continue
 
-                if 'financial_metadata' not in article.payload:
-                    article.payload['financial_metadata'] = {}
+                # 5. Parse published_at from Bronze payload
+                published_at_raw = raw_article.payload.get('published_at')
+                published_at = None
+                if published_at_raw:
+                    try:
+                        published_at = datetime.fromisoformat(published_at_raw)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Could not parse published_at for article {raw_article.id}")
 
-                # Update the payload
-                article.payload['financial_metadata']['sentiment_label'] = sentiment_data['sentiment_label']
-                article.payload['financial_metadata']['sentiment_score'] = sentiment_data['sentiment_score']
-                article.payload['financial_metadata']['tickers'] = extracted_tickers
+                # 6. CREATE Silver record (instead of mutating Bronze payload)
+                silver_article = Article(
+                    raw_article_id=raw_article.id,
+                    title=title or 'Unknown',
+                    published_at=published_at,
+                    sentiment_label=sentiment_data['sentiment_label'],
+                    sentiment_score=sentiment_data['sentiment_score'],
+                    tickers=extracted_tickers,
+                )
+                session.add(silver_article)
 
-                # Mark the payload as modified
-                flag_modified(article, "payload")
-                article.ingestion_state = 'processed'
+                # 7. Update ONLY the state flag in Bronze (the only allowed mutation)
+                raw_article.ingestion_state = 'processed'
                 processed_count += 1
 
             try:
                 await session.commit()
-                logger.info(f"Successfully enriched and committed {processed_count} articles.")
+                logger.info(f"Successfully enriched and committed {processed_count} articles to Silver Layer.")
             except Exception as e:
                 await session.rollback()
                 logger.error(f"Database commit failed during enrichment: {e}", exc_info=True)

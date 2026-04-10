@@ -1,40 +1,35 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.models.raw_article import RawArticle
+from sqlalchemy import select, any_
+from app.models.article import Article
 from app.schemas.sentiment import ArticleSignalDTO
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import cast
 
-async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int=20) -> list[ArticleSignalDTO]:
-    """ 
-    Fetches the latest processed articles for a given ticker utilizing the GIN index.
+
+async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20) -> list[ArticleSignalDTO]:
+    """
+    Fetches the latest processed articles for a given ticker from the Silver Layer.
+    Uses native SQL column filtering instead of JSONB extraction.
     """
     ticker_upper = ticker.upper()
 
-    #SQLAlchemy syntax to leverage the GIN index on the JSONB array
+    # Direct column query on Silver Layer (orders of magnitude faster than JSONB)
     stmt = (
-        select(RawArticle)
-        .where(
-            RawArticle.payload["financial_metadata"]["tickers"].cast(JSONB).contains(cast([ticker_upper], JSONB))
-        )
-        .order_by(RawArticle.id.desc())
+        select(Article)
+        .where(ticker_upper == any_(Article.tickers))
+        .order_by(Article.published_at.desc().nullslast())
         .limit(limit)
     )
 
     result = await db.execute(stmt)
-    raw_articles = result.scalars().all()
+    articles = result.scalars().all()
 
     signals = []
-    for article in raw_articles:
-        meta = article.payload.get('financial_metadata', {})
-
-        article_source= getattr(article, 'source', None) or article.payload.get('source')
+    for article in articles:
         signals.append(ArticleSignalDTO(
             article_id=str(article.id),
-            published_at=article.payload.get('published_at'),
-            source=article_source,
-            sentiment_label=meta.get('sentiment_label', 'neutral'),
-            sentiment_score=meta.get('sentiment_score', 0.0),
+            published_at=article.published_at,
+            source=None,  # Source lives in Bronze; join if needed later
+            sentiment_label=article.sentiment_label or "neutral",
+            sentiment_score=article.sentiment_score or 0.0,
         ))
 
     return signals

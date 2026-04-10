@@ -19,4 +19,4 @@ class RawArticle(Base):
     ingestion_state: Mapped[str] = mapped_column(String(20), server_default="pending", nullable=False) # pending, processed, failed
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
-    articles: Mapped[list["Article"]] = relationship("Article", back_populates="raw_article")
+    article: Mapped["Article"] = relationship("Article", back_populates="raw_article", uselist=False)
