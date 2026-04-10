@@ -7,6 +7,7 @@ from app.db.session import AsyncSessionLocal
 from app.models.raw_article import RawArticle
 from app.models.article import Article
 from app.services.sentiment_analyzer import FinancialSentimentAnalyzer
+from app.services.ticker_extractor import TickerExtractor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize the analyzer once (singleton pattern)
 analyzer = FinancialSentimentAnalyzer()
+ticker_extractor = TickerExtractor()
 
 async def run_sentiment_enrichment(batch_size: int = 200):
     async with AsyncSessionLocal() as session:
@@ -40,8 +42,8 @@ async def run_sentiment_enrichment(batch_size: int = 200):
                 # 2. Run FinBERT inference
                 sentiment_data = analyzer.analyze(text_to_analyze)
                 
-                # 3. Extract tickers
-                extracted_tickers = analyzer.extract_tickers(title, description)
+                # 3. Extract tickers via FlashText (Aho-Corasick)
+                extracted_tickers = ticker_extractor.extract(f"{title} {description}")
 
                 # 4. Skip if inference returned None
                 if sentiment_data['sentiment_label'] is None:

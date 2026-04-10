@@ -21,6 +21,7 @@ RUN python -c "from transformers import AutoModelForSequenceClassification, Auto
 # 4. Luego el código (cambios aquí no invalidan el caché de dependencias y modelos)
 COPY alembic.ini /code/
 COPY ./alembic /code/alembic
+COPY ./data /code/data
 COPY ./app /code/app
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
