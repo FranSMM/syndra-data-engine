@@ -16,4 +16,3 @@ transformers>=4.53.0
 torch>=2.10.0
 flashtext>=2.7
 redis>=5.0.0
-fastapi-cache2[redis]>=0.2.1

@@ -5,8 +5,9 @@ from prefect import task, flow, get_run_logger
 from datetime import timedelta
 import sys
 
-FEEDS_PATH = Path(__file__).parent / "scraper" / "test_output.json"
+SCRAPER_DIR = Path(__file__).parent / "scraper"
 FEEDS_CONFIG_PATH = Path(__file__).parent.parent / "data" / "feeds.json"
+OUTPUT_PATTERN = "*_output.json"
 
 def _load_feeds() -> list[dict]:
     """Load and filter enabled feeds from the BYOS feeds.json config."""
@@ -25,25 +26,29 @@ def run_extraction():
     feeds = _load_feeds()
     logger.info(f"BYOS: {len(feeds)} active feed(s) loaded from feeds.json.")
 
-    scraper_dir = Path(__file__).parent / "scraper"
+    # Clean stale output files from previous runs to avoid loading old data
+    for old_file in SCRAPER_DIR.glob(OUTPUT_PATTERN):
+        old_file.unlink()
+        logger.debug(f"Cleaned old output: {old_file.name}")
 
     for feed in feeds:
         feed_name = feed["name"]
         feed_url = feed["url"]
         source_type = feed.get("source_type", "rss_feed")
+        output_file = f"{feed_name}_output.json"
 
         logger.info(f"Crawling source '{feed_name}' ({source_type}): {feed_url}")
 
-        # Run Scrapy with dynamic arguments, appending output from each feed
+        # Each feed writes to its own file — no data loss between sources
         result = subprocess.run(
             [
                 "scrapy", "crawl", "generic_rss",
                 "-a", f"target_url={feed_url}",
                 "-a", f"source_name={feed_name}",
                 "-a", f"source_type={source_type}",
-                "-O", "test_output.json"
+                "-O", output_file
             ],
-            cwd=scraper_dir,
+            cwd=SCRAPER_DIR,
             capture_output=True,
             text=True
         )
@@ -54,27 +59,34 @@ def run_extraction():
 
     logger.info("All BYOS sources extracted successfully.")
 
-# (Load Task) - Safe to re-run
+# (Load Task) - Safe to re-run (idempotent via content_hash)
 @task(name="Load: PostgreSQL async")
 def run_load():
     logger = get_run_logger()
-    logger.info("Starting async load to DB...")
 
+    output_files = list(SCRAPER_DIR.glob(OUTPUT_PATTERN))
+    if not output_files:
+        logger.warning("No output files found. Skipping load.")
+        return
+
+    logger.info(f"Loading {len(output_files)} output file(s) into PostgreSQL...")
     backend_dir = Path(__file__).parent.parent
 
-    # Run the async loader
-    result = subprocess.run(
-        ["python", "-m", "app.scraper.load_to_db"],
-        cwd=backend_dir,
-        capture_output=True,
-        text=True
-    )
+    for output_file in output_files:
+        logger.info(f"Loading: {output_file.name}")
 
-    if result.returncode != 0:
-        logger.error(f"Critical failure in Load: {result.stderr}")
-        raise RuntimeError("Load node failed")
+        result = subprocess.run(
+            ["python", "-m", "app.scraper.load_to_db", str(output_file)],
+            cwd=backend_dir,
+            capture_output=True,
+            text=True
+        )
 
-    logger.info(f"Successfull load to DB: \n{result.stderr}\n{result.stdout}")
+        if result.returncode != 0:
+            logger.error(f"Load failed for {output_file.name}: {result.stderr}")
+            raise RuntimeError(f"Load failed for: {output_file.name}")
+
+    logger.info(f"All sources loaded to DB successfully.\n{result.stdout}")
 
 @task(name="MLOps: Sentiment Enrichment", retries=1)
 def run_enrichment():
