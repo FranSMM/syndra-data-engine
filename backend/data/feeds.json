@@ -1,6 +1,6 @@
 [
   {
-    "name": "yahoo_finance_rss",
+    "name": "global_finance_rss",
     "url": "https://finance.yahoo.com/news/rssindex",
     "source_type": "rss_feed",
     "enabled": true
