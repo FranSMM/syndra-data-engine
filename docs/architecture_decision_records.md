@@ -29,3 +29,4 @@
 | [ADR-023](./adr/023_qdrant_payload_keyword_indexing.md) | Keyword Payload Indexing for Pre-Filtering in Qdrant | Accepted |
 | [ADR-024](./adr/024_medallion_architecture_bronze_silver_separation.md) | Complete Medallion Architecture Separation (Bronze/Silver) | Accepted |
 | [ADR-025](./adr/025_ticker_dictionary_enhancement.md) | Institutional Ticker Dictionary Enhancement | Accepted |
+| [ADR-026](./adr/026_lazy_loading_ephemeral_ml_models.md) | Lazy Loading for Ephemeral ML Models | Accepted |
