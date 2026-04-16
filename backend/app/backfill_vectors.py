@@ -16,7 +16,7 @@ from app.db.session import AsyncSessionLocal
 from app.models.article import Article
 from app.models.raw_article import RawArticle
 from app.db.vector_store import qdrant, init_qdrant_collection, COLLECTION_NAME
-from app.services.embedding_service import embedding_engine
+# embedding_engine is lazy-loaded inside run_backfill to save memory
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,7 +47,14 @@ async def run_backfill():
             if not raw.payload.get("is_vectorized", False)
         ]
 
+        if not articles_with_raw:
+            logger.info("Found 0 Silver articles to index. Exiting cleanly.")
+            return
+
         logger.info(f"Found {len(articles_with_raw)} Silver articles to index.")
+        
+        # LAZY LOADING: Only load the SentenceTransformer model if there's actual work
+        from app.services.embedding_service import embedding_engine
 
         for i in range(0, len(articles_with_raw), BATCH_SIZE):
             batch = articles_with_raw[i:i + BATCH_SIZE]

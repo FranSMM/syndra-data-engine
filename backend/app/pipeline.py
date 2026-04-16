@@ -56,6 +56,9 @@ def run_extraction():
         if result.returncode != 0:
             logger.error(f"Scrapy failed for source '{feed_name}': {result.stderr}")
             raise RuntimeError(f"Extraction failed for source: {feed_name}")
+            
+        if result.stdout:
+            logger.info(f"[{feed_name}] Scrapy stdout: \n{result.stdout}")
 
     logger.info("All BYOS sources extracted successfully.")
 
@@ -85,8 +88,13 @@ def run_load():
         if result.returncode != 0:
             logger.error(f"Load failed for {output_file.name}: {result.stderr}")
             raise RuntimeError(f"Load failed for: {output_file.name}")
+            
+        if result.stdout:
+            logger.info(f"[{output_file.name}] Load stdout: \n{result.stdout}")
+        if result.stderr:
+            logger.info(f"[{output_file.name}] Load logs: \n{result.stderr}")
 
-    logger.info(f"All sources loaded to DB successfully.\n{result.stdout}")
+    logger.info("All sources loaded to DB successfully.")
 
 @task(name="MLOps: Sentiment Enrichment", retries=1)
 def run_enrichment():
@@ -118,7 +126,7 @@ def run_enrichment():
 @task(name="MLOps: Vector Indexing", retries=1)
 def run_vectorization():
     logger = get_run_logger()
-    logger.info("Starting semantic vector geenration (all-MiniLM-L6-v2 on CPU)...")
+    logger.info("Starting semantic vector generation (all-MiniLM-L6-v2 on CPU)...")
 
     backend_dir = Path(__file__).parent.parent
 

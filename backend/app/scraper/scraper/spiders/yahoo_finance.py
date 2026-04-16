@@ -1,3 +1,5 @@
+# NOT USING CURRENTLY - USING GENERIC RSS SPIDER INSTEAD
+
 import scrapy
 from pydantic import ValidationError
 

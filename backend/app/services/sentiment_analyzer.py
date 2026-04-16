@@ -14,17 +14,18 @@ class FinancialSentimentAnalyzer:
     def __init__(self):
         self.model_name = "ProsusAI/finbert"
 
-        """
-        CONFIGURATION FOR GPU
+        # Dynamic Device Selection: GPU for local development, CPU fallback for VPS compatibility
         # 0 = GPU, -1 = CPU
         # torch.cuda.is_available() checks if a GPU is available (Pytorch detects if CUDA is installed)
-        self.device = 0 if torch.cuda.is_available() else -1
-        device_name = f"CUDA (GPU {torch.cuda.get_device_name(0)})" if self.device == 0 else "CPU"
-        """
-
-        # Force CPU execution for VPS compatibility
-        self.device = "cpu"
-        device_name = "CPU"
+        if torch.cuda.is_available():
+            self.device = 0
+            device_name = f"CUDA ({torch.cuda.get_device_name(0)})"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            self.device = "mps"
+            device_name = "MPS (Apple Silicon)"
+        else:
+            self.device = -1
+            device_name = "CPU"
 
         logger.info(f"Loading ML model: {self.model_name} on {device_name}...")
 

@@ -13,9 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# Initialize the analyzer once (singleton pattern)
-analyzer = FinancialSentimentAnalyzer()
-ticker_extractor = TickerExtractor()
+# Models will be lazy-loaded to save RAM and initialization time
 
 async def run_sentiment_enrichment(batch_size: int = 200):
     async with AsyncSessionLocal() as session:
@@ -28,6 +26,11 @@ async def run_sentiment_enrichment(batch_size: int = 200):
             if not articles:
                 logger.info("No more pending articles found for enrichment. Exiting cleanly.")
                 break
+                
+            # LAZY LOADING: Only load the heavy ML models into RAM if there are articles to process
+            logger.info("Initializing NLP models for inference...")
+            analyzer = FinancialSentimentAnalyzer()
+            ticker_extractor = TickerExtractor()
             
             logger.info(f"Processing batch of {len(articles)} articles...")
             processed_count = 0

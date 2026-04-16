@@ -18,30 +18,30 @@ bash:
 
 # Connecting to the DB using the correct credentials from .env
 db-shell:
-	docker compose exec db psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+	docker compose exec postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}
 
 # ==============================================================================
 # Database Migrations (Alembic)
 # ==============================================================================
 # Usage: make makemigrations m="migration message"
 makemigrations:
-	docker compose exec backend alembic revision --autogenerate -m "$(m)"
+	docker compose exec api alembic revision --autogenerate -m "$(m)"
 
 migrate:
-	docker compose exec backend alembic upgrade head
+	docker compose exec api alembic upgrade head
 
 # ==============================================================================
 # Manual ETL Pipeline (Scrapy + Pydantic + SQLAlchemy)
 # ==============================================================================
 crawl:
-	docker compose exec backend bash -c "cd app/scraper && export PYTHONPATH=/code && scrapy crawl yahoo_finance -O test_output.json"
+	docker compose exec api bash -c "cd app/scraper && export PYTHONPATH=/code && scrapy crawl generic_rss -O test_output.json"
 
 load:
-	docker compose exec backend python -m app.scraper.load_to_db
+	docker compose exec api python -m app.scraper.load_to_db
 
 # Full testing pipeline
 etl-test: crawl load
 
 # Prefect Pipeline
 run-etl:
-	docker compose exec backend python app/pipeline.py
+	docker compose exec api python app/pipeline.py

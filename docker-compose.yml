@@ -3,7 +3,8 @@ name: syndra-data-engine
 services:
   postgres:
     image: postgres:15-alpine
-    restart: always
+    container_name: syndra_postgres
+    restart: unless-stopped
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./infra/postgres-init.sh:/docker-entrypoint-initdb.d/postgres-init.sh
@@ -13,7 +14,7 @@ services:
       - "5433:5432"
     healthcheck:
       # Checks if the DB is ready to accept connections
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,10 +29,18 @@ services:
     volumes:
       - ./data/qdrant:/qdrant/storage
 
-  backend:
+  redis:
+    image: redis:7-alpine
+    container_name: syndra_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+
+  api:
     build: ./backend
-    container_name: syndra_backend
-    # Restarts the container if it crashes
+    container_name: syndra_api
     restart: unless-stopped
     volumes:
       - ./backend/app:/code/app
@@ -55,5 +64,49 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  prefect_server:
+    image: prefecthq/prefect:3-latest
+    container_name: syndra_prefect_server
+    command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
+    env_file:
+      - .env
+    environment:
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
+    ports:
+      - "4200:4200"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scheduler:
+    build: ./backend
+    container_name: syndra_scheduler
+    env_file:
+      - .env
+    command: ["python", "-m", "app.pipeline"]
+    restart: unless-stopped
+    volumes:
+      - ./backend/app:/code/app
+      - ./data/huggingface:/root/.cache/huggingface
+    
+    # GPU Configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      prefect_server:
+        condition: service_started
       qdrant:
         condition: service_started

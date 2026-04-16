@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'assets/public/**'
       - 'README.md'
 
   workflow_dispatch:
@@ -28,16 +29,18 @@ jobs:
 
       - name: Copy Files and Add Disclaimer
         run: |
-          # 1. Copy the docs folder
+          # 1. Copy the docs and public assets folders
           cp -r source-repo/docs/ target-repo/
+          mkdir -p target-repo/assets/public
+          cp -r source-repo/assets/public/* target-repo/assets/public/ || true
           
-          # 2. Write your disclaimer into the empty public README
+          # 2. Write the disclaimer into the empty public README
           echo "> ⚠️ **Note:** The actual codebase for Syndra is currently kept in a **private monorepo** as it is in active development." > target-repo/README.md
           echo ">" >> target-repo/README.md
           echo "> This public repository serves as the **Engineering & Architecture Log**. Here you will find the system architecture, ADRs (Architecture Decision Records), and troubleshooting logs that demonstrate my system design and problem-solving skills." >> target-repo/README.md
           echo "" >> target-repo/README.md
           
-          # 3. Append the rest of your private README right below the disclaimer!
+          # 3. Append the rest of the private README right below the disclaimer!
           cat source-repo/README.md >> target-repo/README.md
 
       - name: Commit and Push to Public Repo
