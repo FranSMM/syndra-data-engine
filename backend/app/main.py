@@ -5,7 +5,7 @@ from app.api.v1.endpoints import sentiment, search
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Institutional-grade sentiment analysis API for financial markets.",
-    version="1.0.0",
+    version="1.0.0"
 )
 
 app.include_router(sentiment.router, prefix="/api/v1/sentiment", tags=["Sentiment Analysis"])

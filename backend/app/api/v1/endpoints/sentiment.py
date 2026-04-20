@@ -2,20 +2,43 @@ from fastapi import APIRouter, Depends, Query
 from app.schemas.sentiment import TickerSentimentResponse
 from app.services.sentiment_service import fetch_recent_signals
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_db
+import logging
+from typing import Any
+
+from app.api.deps import get_db, verify_api_key
+from app.models.api_key import APIKey
+from app.core.redis import redis_client
+import json
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
+
 
 @router.get("/{ticker}", response_model=TickerSentimentResponse)
 async def get_ticker_sentiment(
     ticker: str,
     limit: int = Query(default=20, ge=1, le=100, description="Number of recent articles to analyze"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    client: APIKey = Depends(verify_api_key)
 ):
     """
     Get aggregated sentiment for a specific ticker.
     """
+
+    # Internal log to know which client is making the request
+    logger.info(f"API Request | Client: {client.client_name} | Ticker: {ticker.upper()}")
     
+    # TRY IN REDIS (Response Cache Hit)
+    cache_key = f"sentiment:{ticker.upper()}"
+    cached_data = await redis_client.get(cache_key)
+    if cached_data:
+        logger.info(f"CACHE HIT: Served instantly from Redis ({ticker.upper()})")
+        return json.loads(cached_data)
+
+    logger.info(f"CACHE MISS: Computing in PostgreSQL for {ticker.upper()}")
     signals = await fetch_recent_signals(db, ticker, limit)
 
     if not signals:
@@ -36,10 +59,15 @@ async def get_ticker_sentiment(
     else:
         agg_label = "neutral"
     
-    return TickerSentimentResponse(
+    response = TickerSentimentResponse(
         ticker=ticker.upper(),
         aggregated_sentiment=agg_label,
         average_score=round(avg_score, 4),
         article_count=len(signals),
         recent_signals=signals
     )
+
+    # SAVE IN CACHE (Serialize the schema to JSON)
+    await redis_client.set(cache_key, response.model_dump_json(), ex=300)
+    
+    return response
