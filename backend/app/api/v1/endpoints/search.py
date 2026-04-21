@@ -4,6 +4,9 @@ from app.services.embedding_service import embedding_engine
 from typing import List, Dict, Any
 import logging
 
+from app.api.deps import verify_api_key
+from app.models.api_key import APIKey
+from fastapi import Depends
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -11,12 +14,14 @@ router = APIRouter()
 @router.get("/semantic", response_model=List[Dict[str, Any]])
 async def semantic_search(
     query: str = Query(..., min_length=3, description="Semantic concept to search for"),
-    limit: int = Query(default=5, ge=1, le=20, description="Maximum number of results")
+    limit: int = Query(default=5, ge=1, le=20, description="Maximum number of results"),
+    client: APIKey = Depends(verify_api_key)
 ):
    """
    Perform a semantic similarity search across financial news
    """
    try:
+       logger.info(f"Search API | Client: {client.client_name} | Query: {query}")
        # Generate embedding for the query
        query_embedding = embedding_engine.get_embedding(query)
 
@@ -43,4 +48,4 @@ async def semantic_search(
 
    except Exception as e:
        logger.error(f"Search failed: {str(e)}")
-       raise HTTPException(status_code=500, detail=str(e))
+       raise HTTPException(status_code=500, detail="Internal search engine error")
