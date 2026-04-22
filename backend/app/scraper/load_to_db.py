@@ -2,7 +2,7 @@ import json
 import asyncio
 import logging
 import sys
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
@@ -22,7 +22,6 @@ async def load_articles(file_path: str):
     
     async with AsyncSessionLocal() as session:
             inserted_count = 0
-            duplicate_count = 0
 
             for data in articles_data:
                 # 1. Use the pre-calculated hash from Pydantic
@@ -34,29 +33,23 @@ async def load_articles(file_path: str):
                 article_payload['published_at'] = data.get('published_at') # CRITICAL: Save the timestamp
                 article_payload['source'] = data.get('source')
 
-                # 3. Instantiate the SQLAlchemy model
-                db_article = RawArticle(
+                # 3. INSERT ... ON CONFLICT DO NOTHING (silent idempotency, zero Postgres ERROR logs)
+                stmt = pg_insert(RawArticle).values(
                     url=data['url'],
                     source=data['source'],
                     source_type=data.get('source_type', 'rss_feed'),
                     content_hash=article_hash,
-                    payload=article_payload
-                    # ingestion_state and created_at are handled by server_default
-                )
+                    payload=article_payload,
+                ).on_conflict_do_nothing(index_elements=['content_hash'])
 
-                session.add(db_article)
+                result = await session.execute(stmt)
 
-                try: 
-                    # Attempt to save to Postgres
-                    await session.commit()
+                if result.rowcount > 0:
                     inserted_count += 1
                     logger.info(f"Inserted: {data['title']}")
-                except IntegrityError:
-                    # Handle duplicates gracefully (Fail-Safe)
-                    await session.rollback()
-                    duplicate_count += 1
-                    logger.debug(f"Duplicate skipped (Hash Collision): {data['url']}")
 
+            await session.commit()
+            duplicate_count = len(articles_data) - inserted_count
             logger.info(f"Load complete. Inserted: {inserted_count} | Duplicates skipped: {duplicate_count}")
 
 from pathlib import Path
