@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from app.db.vector_store import qdrant, COLLECTION_NAME
-from app.services.embedding_service import embedding_engine
+from app.services.embedding_service import get_embedding_engine
 from typing import List, Dict, Any, Optional
 import logging
 
@@ -26,7 +26,7 @@ async def semantic_search(
    try:
        logger.info(f"Search API | Client: {client.client_name} | Query: {query} | Ticker: {ticker}")
        # Generate embedding for the query
-       query_embedding = embedding_engine.get_embedding(query)
+       query_embedding = get_embedding_engine().get_embedding(query)
 
        # Set up hybrid search filter if ticker is provided
        query_filter = None

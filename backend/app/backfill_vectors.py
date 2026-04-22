@@ -58,8 +58,8 @@ async def run_backfill():
                 break
 
             if not model_loaded:
-                from app.services.embedding_service import embedding_engine as _engine
-                embedding_engine = _engine
+                from app.services.embedding_service import get_embedding_engine
+                embedding_engine = get_embedding_engine()
                 model_loaded = True
                 logger.info(f"Found articles to index. Model loaded.")
 

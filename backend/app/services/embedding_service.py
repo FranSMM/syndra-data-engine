@@ -31,5 +31,14 @@ class EmbeddingService:
             logger.error(f"Failed to generate embeddings for batch of texts")
             raise
 
-# Singleton instance for the FastAPI app lifecycle
-embedding_engine = EmbeddingService()
+# Lazy-loaded singleton — model is NOT loaded at import time.
+# This prevents the API from eagerly loading ~90MB of weights on every
+# startup / hot-reload. The model is only loaded on first actual use.
+_embedding_engine: EmbeddingService | None = None
+
+def get_embedding_engine() -> EmbeddingService:
+    """Return the singleton EmbeddingService, creating it on first call."""
+    global _embedding_engine
+    if _embedding_engine is None:
+        _embedding_engine = EmbeddingService()
+    return _embedding_engine
