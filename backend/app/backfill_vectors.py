@@ -10,6 +10,7 @@ import logging
 import uuid as uuid_lib
 
 from sqlalchemy import select
+from sqlalchemy import or_ as db_or
 from qdrant_client.http.models import PointStruct
 
 from app.db.session import AsyncSessionLocal
@@ -28,36 +29,40 @@ async def run_backfill():
     logger.info("Starting historical vector backfill from Silver Layer...")
     init_qdrant_collection()
 
+    # LAZY LOADING: Only load the SentenceTransformer model if there's actual work
+    model_loaded = False
+    embedding_engine = None
+
     async with AsyncSessionLocal() as session:
-        # Join Silver with Bronze to get the URL for deterministic UUID
-        # and check vectorization flag still on Bronze payload
-        stmt = (
-            select(Article, RawArticle)
-            .join(RawArticle, Article.raw_article_id == RawArticle.id)
-            .where(
-                Article.sentiment_label.is_not(None),
+        while True:
+            # Query only UN-VECTORIZED articles (filter pushed to SQL, not Python)
+            # Uses PostgreSQL JSONB operator to check the flag at DB level
+            stmt = (
+                select(Article, RawArticle)
+                .join(RawArticle, Article.raw_article_id == RawArticle.id)
+                .where(
+                    Article.sentiment_label.is_not(None),
+                    db_or(
+                        RawArticle.payload["is_vectorized"].as_boolean().is_(None),
+                        RawArticle.payload["is_vectorized"].as_boolean() == False,
+                    )
+                )
+                .limit(BATCH_SIZE)
             )
-        )
-        result = await session.execute(stmt)
-        rows = result.all()
+            result = await session.execute(stmt)
+            batch = result.all()
 
-        # Filter out already vectorized articles (flag lives in Bronze payload)
-        articles_with_raw = [
-            (article, raw) for article, raw in rows
-            if not raw.payload.get("is_vectorized", False)
-        ]
+            if not batch:
+                if not model_loaded:
+                    logger.info("Found 0 Silver articles to index. Exiting cleanly.")
+                break
 
-        if not articles_with_raw:
-            logger.info("Found 0 Silver articles to index. Exiting cleanly.")
-            return
+            if not model_loaded:
+                from app.services.embedding_service import embedding_engine as _engine
+                embedding_engine = _engine
+                model_loaded = True
+                logger.info(f"Found articles to index. Model loaded.")
 
-        logger.info(f"Found {len(articles_with_raw)} Silver articles to index.")
-        
-        # LAZY LOADING: Only load the SentenceTransformer model if there's actual work
-        from app.services.embedding_service import embedding_engine
-
-        for i in range(0, len(articles_with_raw), BATCH_SIZE):
-            batch = articles_with_raw[i:i + BATCH_SIZE]
             texts_to_encode = []
             points = []
 
@@ -65,7 +70,7 @@ async def run_backfill():
                 desc = raw.payload.get("description", "")
                 texts_to_encode.append(f"{article.title}\n{desc}")
 
-            logger.info(f"Encoding batch {i // BATCH_SIZE + 1}...")
+            logger.info(f"Encoding batch of {len(batch)} articles...")
             embeddings = embedding_engine.get_embeddings_batch(texts_to_encode)
 
             for (article, raw), embedding in zip(batch, embeddings):
