@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Security, HTTPException, status, Depends
 from fastapi.security import APIKeyHeader
 from typing import AsyncGenerator
@@ -80,9 +82,24 @@ async def verify_api_key(
             detail="Invalid or revoked API Key"
         )
 
-    # Cache the auth result in Redis (5 min TTL)
-    await redis_client.set(cached_key, key_record.client_name, ex=60*5)
+    # --- 3. Expiration Check (Trial Keys) ---
+    if key_record.expires_at and key_record.expires_at <= datetime.now(timezone.utc):
+        # Auto-deactivate the expired trial key to avoid repeated DB lookups
+        key_record.is_active = False
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API Key has expired. Contact support to renew.",
+        )
 
+    # Cache the auth result in Redis.
+    # For trial keys, cap TTL to remaining lifetime to prevent serving
+    # stale auth after expiration. Permanent keys use the default 5 min.
+    cache_ttl = 60 * 5
+    if key_record.expires_at:
+        remaining = int((key_record.expires_at - datetime.now(timezone.utc)).total_seconds())
+        cache_ttl = max(min(cache_ttl, remaining), 1)
+    await redis_client.set(cached_key, key_record.client_name, ex=cache_ttl)
     # Rate limit AFTER confirming identity
     await _enforce_rate_limit(incoming_hash)
 

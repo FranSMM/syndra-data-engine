@@ -23,7 +23,7 @@ async def create_key(client_name: str):
     print(f"==========================================================")
     print(f"CLIENT: {new_key.client_name}")
     print(f"RAW KEY: {raw_key}")
-    print(f" -- SAVE THIS KEY IN A SECURE LOCATION. It's only on screen, not stored in DB. --")
+    print(f" -- This key will NOT be shown again. Store it securely. --")
     print(f"==========================================================\n")
     
 
