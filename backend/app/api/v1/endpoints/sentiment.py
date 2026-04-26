@@ -32,7 +32,12 @@ async def get_ticker_sentiment(
     logger.info(f"API Request | Client: {client.client_name} | Ticker: {ticker.upper()}")
     
     # TRY IN REDIS (Response Cache Hit)
-    cache_key = f"sentiment:{ticker.upper()}"
+    # Cache sharing between clients is done using client_name in the cache key
+    # example: cache_key = f"sentiment:{ticker.upper()}:{limit}"
+    
+    # Cache is scoped per-client to prevent cross-client data leakage.
+    # Key includes `limit` to prevent serving mismatched article counts.
+    cache_key = f"sentiment:{client.client_name}:{ticker.upper()}:{limit}"
     cached_data = await redis_client.get(cache_key)
     if cached_data:
         logger.info(f"CACHE HIT: Served instantly from Redis ({ticker.upper()})")
