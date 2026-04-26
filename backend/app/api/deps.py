@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import Security, HTTPException, status, Depends
+from fastapi import Request, Security, HTTPException, status, Depends
 from fastapi.security import APIKeyHeader
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +22,10 @@ RATE_LIMIT_MAX_REQUESTS = 100  # requests per window
 RATE_LIMIT_WINDOW_SECONDS = 60  # 1-minute sliding window
 
 
-async def _enforce_rate_limit(api_key_hash: str) -> None:
+async def _enforce_rate_limit(api_key_hash: str) -> tuple[int, int]:
     """
     Atomic rate limiter using Redis INCR + EXPIRE.
+    Returns (remaining_requests, seconds_until_reset).
     Raises HTTP 429 if the client exceeds RATE_LIMIT_MAX_REQUESTS per window.
     """
     rate_key = f"ratelimit:{api_key_hash}"
@@ -36,21 +37,27 @@ async def _enforce_rate_limit(api_key_hash: str) -> None:
     if current_count == 1:
         await redis_client.expire(rate_key, RATE_LIMIT_WINDOW_SECONDS)
 
+    ttl = await redis_client.ttl(rate_key)
+    remaining = max(RATE_LIMIT_MAX_REQUESTS - current_count, 0)
+
     if current_count > RATE_LIMIT_MAX_REQUESTS:
-        ttl = await redis_client.ttl(rate_key)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Rate limit exceeded. Max {RATE_LIMIT_MAX_REQUESTS} requests per {RATE_LIMIT_WINDOW_SECONDS}s.",
             headers={"Retry-After": str(max(ttl, 1))}
         )
 
+    return remaining, max(ttl, 0)
+
 
 async def verify_api_key(
+    request: Request,
     api_key: str = Security(APIKeyHeader(name="X-API-Key", auto_error=False)),
     db: AsyncSession = Depends(get_db)
 ) -> APIKey:
     """
     Middleware B2B: Converts raw API key to hash and validates it against the database.
+    Stores rate limit metadata in request.state for header injection by middleware.
     """
     if not api_key:
         raise HTTPException(
@@ -65,7 +72,9 @@ async def verify_api_key(
     cached_client_name = await redis_client.get(cached_key)
     if cached_client_name:
         # Rate limit AFTER confirming identity (don't let invalid keys consume budget)
-        await _enforce_rate_limit(incoming_hash)
+        remaining, reset = await _enforce_rate_limit(incoming_hash)
+        request.state.ratelimit_remaining = remaining
+        request.state.ratelimit_reset = reset
         return APIKey(hashed_key=incoming_hash, client_name=cached_client_name, is_active=True)
 
     # --- 2. Auth: PostgreSQL Lookup (Cache Miss) ---
@@ -101,6 +110,8 @@ async def verify_api_key(
         cache_ttl = max(min(cache_ttl, remaining), 1)
     await redis_client.set(cached_key, key_record.client_name, ex=cache_ttl)
     # Rate limit AFTER confirming identity
-    await _enforce_rate_limit(incoming_hash)
+    remaining, reset = await _enforce_rate_limit(incoming_hash)
+    request.state.ratelimit_remaining = remaining
+    request.state.ratelimit_reset = reset
 
     return key_record

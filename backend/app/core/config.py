@@ -5,6 +5,7 @@ from pydantic_core import MultiHostUrl
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Syndra"
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = "development"  # "production" disables Swagger UI
 
     model_config = SettingsConfigDict(
         env_file="../.env",
