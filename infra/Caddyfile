@@ -1,0 +1,3 @@
+api.syndradata.com {
+    reverse_proxy syndra_api:8000
+}

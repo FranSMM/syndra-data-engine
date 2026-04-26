@@ -47,8 +47,8 @@ services:
   api:
     image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_api
-    ports:
-      - "127.0.0.1:8000:8000"
+    # No host ports — Caddy is the only ingress. API is reachable
+    # only via Docker's internal syndra_net network.
     env_file: .env
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
     networks:
@@ -104,6 +104,22 @@ services:
         limits:
           memory: 2.5G
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: syndra_caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - syndra_caddy_data:/data
+      - syndra_caddy_config:/config
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    depends_on:
+      - api
+
 networks:
   syndra_net:
     driver: bridge
@@ -112,3 +128,5 @@ volumes:
   syndra_pgdata:
   syndra_qdrant_data:
   syndra_redis_data:
+  syndra_caddy_data:
+  syndra_caddy_config:

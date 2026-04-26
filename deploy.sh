@@ -23,8 +23,9 @@ docker build -t ghcr.io/fransmm/syndra-etl:latest ./backend
 echo "-- [2/4] Pushing the image to GitHub Container Registry..."
 docker push ghcr.io/fransmm/syndra-etl:latest
 
-echo "-- [3/4] Syncing infrastructure (docker-compose) to VPS..."
+echo "-- [3/4] Syncing infrastructure to VPS..."
 scp ./infra/docker-compose.prod.yml $VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml
+scp ./infra/Caddyfile $VPS_USER@$VPS_IP:$DEPLOY_DIR/Caddyfile
 
 echo "-- [4/4] Restarting containers on VPS..."
 ssh $VPS_USER@$VPS_IP << EOF
