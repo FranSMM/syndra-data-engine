@@ -21,6 +21,8 @@ router = APIRouter()
 async def get_ticker_sentiment(
     ticker: str,
     limit: int = Query(default=20, ge=1, le=100, description="Number of recent articles to analyze"),
+    deduplicate: bool = Query(default=True, description="Enable late deduplication"),
+    dedup_window_hours: int = Query(default=3, ge=1, le=24, description="Time window for deduplication when enabled"),
     db: AsyncSession = Depends(get_db),
     client: APIKey = Depends(verify_api_key)
 ):
@@ -36,15 +38,15 @@ async def get_ticker_sentiment(
     # example: cache_key = f"sentiment:{ticker.upper()}:{limit}"
     
     # Cache is scoped per-client to prevent cross-client data leakage.
-    # Key includes `limit` to prevent serving mismatched article counts.
-    cache_key = f"sentiment:{client.client_name}:{ticker.upper()}:{limit}"
+    # Key includes deduplication settings to prevent serving mismatched results.
+    cache_key = f"sentiment:{client.client_name}:{ticker.upper()}:{limit}:d{int(deduplicate)}:w{dedup_window_hours}"
     cached_data = await redis_client.get(cache_key)
     if cached_data:
         logger.info(f"CACHE HIT: Served instantly from Redis ({ticker.upper()})")
         return json.loads(cached_data)
 
     logger.info(f"CACHE MISS: Computing in PostgreSQL for {ticker.upper()}")
-    signals = await fetch_recent_signals(db, ticker, limit)
+    signals = await fetch_recent_signals(db, ticker, limit, deduplicate, dedup_window_hours)
 
     if not signals:
         return TickerSentimentResponse(
@@ -59,9 +61,9 @@ async def get_ticker_sentiment(
     avg_score = sum(s.sentiment_score for s in signals) / len(signals)
 
     if avg_score > 0.15:
-        agg_label = "bullish"
+        agg_label = "positive"
     elif avg_score < -0.15:
-        agg_label = "bearish"
+        agg_label = "negative"
     else:
         agg_label = "neutral"
     

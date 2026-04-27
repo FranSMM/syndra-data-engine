@@ -1,3 +1,6 @@
+# NOT USED - API Keys are created BY provision_client.py
+# This script is left here for reference
+
 import asyncio
 import argparse
 from app.db.session import AsyncSessionLocal
