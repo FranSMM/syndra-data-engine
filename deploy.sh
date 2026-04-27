@@ -17,6 +17,12 @@ if [ -z "$VPS_IP" ] || [ -z "$VPS_USER" ] || [ -z "$DEPLOY_DIR" ]; then
     exit 1
 fi
 
+# Check that there are no unpushed commits
+if [ -n "$(git log origin/main..HEAD 2>/dev/null)" ]; then
+    echo "Error: you have unpushed commits. Run 'git push' first."
+    exit 1
+fi
+
 echo "-- [1/4] Building the new Docker image..."
 docker build -t ghcr.io/fransmm/syndra-etl:latest ./backend
 
