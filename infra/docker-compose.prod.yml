@@ -88,6 +88,8 @@ services:
     image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_scheduler
     env_file: .env
+    environment:
+      - PREFECT_API_URL=http://prefect_server:4200/api
     command: ["python", "-m", "app.pipeline"]
     networks:
       - syndra_net

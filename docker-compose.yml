@@ -44,6 +44,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend/app:/code/app
+      - ./backend/tests:/code/tests
       - ./backend/alembic:/code/alembic
       - ./backend/alembic.ini:/code/alembic.ini
       # Cache for ML models (downloaded once, persists across restarts)
@@ -89,6 +90,8 @@ services:
     container_name: syndra_scheduler
     env_file:
       - .env
+    environment:
+      - PREFECT_API_URL=http://prefect_server:4200/api
     command: ["python", "-m", "app.pipeline"]
     restart: unless-stopped
     volumes:
