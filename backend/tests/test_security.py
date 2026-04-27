@@ -7,7 +7,8 @@ from sqlalchemy import select
 from app.db.session import AsyncSessionLocal
 from app.models.api_key import APIKey
 from app.core.security import get_api_key_hash
-from app.core.redis import redis_client
+from app.core.redis import REDIS_URL
+from redis import asyncio as aioredis
 
 # We will run this test inside the docker container so 127.0.0.1:8000 points to the API itself.
 BASE_URL = "http://127.0.0.1:8000"
@@ -35,13 +36,16 @@ TestSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=te
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def setup_teardown_db():
     """ Setup test keys in the local database and clean them up afterwards. """
+    local_redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+    
     # 1. SETUP
-    # Clean Redis rate limit counter for the valid key
-    await redis_client.delete(f"ratelimit:{VALID_HASH}")
+    # Clean Redis rate limit and auth cache for the valid key
+    await local_redis.delete(f"ratelimit:{VALID_HASH}")
+    await local_redis.delete(f"auth:{VALID_HASH}")
 
     async with TestSessionLocal() as session:
         # Clean any remnants from previous failed test runs
-        stmt = select(APIKey).where(APIKey.client_name.in_(["Test_Valid_Client", "Test_Expired_Client"]))
+        stmt = select(APIKey).where(APIKey.hashed_key.in_([VALID_HASH, EXPIRED_HASH]))
         result = await session.execute(stmt)
         for key in result.scalars().all():
             await session.delete(key)
@@ -67,15 +71,18 @@ async def setup_teardown_db():
     yield # Let tests run
     
     # 2. TEARDOWN
-    # Clean Redis rate limit counter for the valid key again
-    await redis_client.delete(f"ratelimit:{VALID_HASH}")
+    # Clean Redis rate limit and auth cache for the valid key again
+    await local_redis.delete(f"ratelimit:{VALID_HASH}")
+    await local_redis.delete(f"auth:{VALID_HASH}")
 
     async with TestSessionLocal() as session:
-        stmt = select(APIKey).where(APIKey.client_name.in_(["Test_Valid_Client", "Test_Expired_Client"]))
+        stmt = select(APIKey).where(APIKey.hashed_key.in_([VALID_HASH, EXPIRED_HASH]))
         result = await session.execute(stmt)
         for key in result.scalars().all():
             await session.delete(key)
         await session.commit()
+        
+    await local_redis.aclose()
 
 
 
@@ -141,9 +148,8 @@ async def test_429_rate_limiting():
 
 @pytest.mark.asyncio
 async def test_200_semantic_search_valid_key():
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
-        payload = {"query": "apple earnings", "limit": 1}
-        response = await client.post(SEMANTIC_ENDPOINT, headers={"X-API-Key": VALID_RAW_KEY}, json=payload)
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
+        response = await client.get(f"{SEMANTIC_ENDPOINT}?query=apple%20earnings&limit=1", headers={"X-API-Key": VALID_RAW_KEY})
         
         # Even if the DB has no articles, it should return 200 with results=[]
         assert response.status_code == 200

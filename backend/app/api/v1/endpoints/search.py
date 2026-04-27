@@ -54,10 +54,10 @@ async def semantic_search(
        results = []
        for hit in search_result:
            results.append({
-               "article_id": hit.payload.get("article_id"),
-               "tickers": hit.payload.get("tickers"),
                "similarity_score": round(hit.score, 4),
-               "title": hit.payload.get("title", "unknown")
+               "title": hit.payload.get("title", "unknown"),
+               "tickers": hit.payload.get("tickers", []),
+               "sentiment_label": hit.payload.get("sentiment_label", "neutral")
            })
 
        return results
