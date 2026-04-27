@@ -25,13 +25,23 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20) -
     result = await db.execute(stmt)
     articles = result.scalars().all()
 
+    from urllib.parse import urlparse
+
     signals = []
     for article in articles:
-        # Check if raw_article is loaded to avoid NoneType errors
-        source_name = article.raw_article.source if article.raw_article else "Unknown"
-        
+        # Extract meaningful source domain from URL or fallback
+        if article.raw_article and article.raw_article.url:
+            parsed_uri = urlparse(article.raw_article.url)
+            domain = parsed_uri.netloc.replace("www.", "")
+            source_name = domain.capitalize() if domain else "Unknown Source"
+            article_url = article.raw_article.url
+        else:
+            source_name = article.source if article.source else "Unknown Source"
+            article_url = None
+            
         signals.append(ArticleSignalDTO(
-            article_id=str(article.id),
+            title=article.title,
+            url=article_url,
             published_at=article.published_at,
             source=source_name,
             sentiment_label=article.sentiment_label or "neutral",

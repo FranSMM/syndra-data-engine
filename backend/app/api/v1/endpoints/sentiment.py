@@ -49,6 +49,7 @@ async def get_ticker_sentiment(
     if not signals:
         return TickerSentimentResponse(
             ticker=ticker.upper(),
+            time_window="N/A",
             aggregated_sentiment="neutral",
             average_score=0.0,
             article_count=0,
@@ -64,8 +65,23 @@ async def get_ticker_sentiment(
     else:
         agg_label = "neutral"
     
+    # Calculate dynamic time window from the signals
+    time_window = "unknown"
+    if signals:
+        dates = [s.published_at for s in signals if s.published_at]
+        if dates:
+            newest = max(dates)
+            oldest = min(dates)
+            delta = newest - oldest
+            days = delta.days
+            if days == 0:
+                time_window = "24 hours"
+            else:
+                time_window = f"{days} days"
+
     response = TickerSentimentResponse(
         ticker=ticker.upper(),
+        time_window=time_window,
         aggregated_sentiment=agg_label,
         average_score=round(avg_score, 4),
         article_count=len(signals),

@@ -4,7 +4,8 @@ from typing import List, Optional
 
 class ArticleSignalDTO(BaseModel):
     """Represents a single processed article signal."""
-    article_id: str = Field(..., description="Internal reference ID")
+    title: str = Field(..., description="Headline of the article")
+    url: Optional[str] = Field(None, description="Original source URL")
     published_at: Optional[datetime] = Field(None, description="ISO 8601 publication timestamp")
     source: Optional[str] = Field(None, description="Origin of the news (e.g., Yahoo Finance)")
     sentiment_label: str = Field(..., description="Classification: positive, negative, neutral")
@@ -17,6 +18,7 @@ class TickerSentimentResponse(BaseModel):
     """Aggregeted sentiment for a specific ticker."""
     status: str = Field(default="success", description="API response status")
     ticker: str = Field(..., description="Requested ticker symbol (e.g., AAPL)")
+    time_window: str = Field(..., description="Aggregation period (e.g., '7 days')")
     aggregated_sentiment: str = Field(..., description="Overall trend: bullish, bearish, neutral")
     average_score: float = Field(..., description="Mean sentiment score of recent articles")
     article_count: int = Field(..., description="Number of articles analyzed")
