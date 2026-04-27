@@ -58,8 +58,8 @@ class FinancialSentimentAnalyzer:
 
             scores = {item['label']: item['score'] for item in result}
 
-            # Quant Formula: (Positive - Negative)  (-1.0 to 1.0)
-            impact_score = round((scores['positive'] - scores['negative']), 4)
+            # Quant Formula: (Positive - Negative) * (1 - Neutral)
+            impact_score = round((scores['positive'] - scores['negative']) * (1 - scores['neutral']), 4)
 
             # label is either 'positive', 'negative', 'neutral'
             dominant_label = max(scores, key=scores.get)
