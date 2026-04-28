@@ -23,6 +23,7 @@ async def get_ticker_sentiment(
     limit: int = Query(default=20, ge=1, le=100, description="Number of recent articles to analyze"),
     deduplicate: bool = Query(default=True, description="Enable late deduplication"),
     dedup_window_hours: int = Query(default=3, ge=1, le=24, description="Time window for deduplication when enabled"),
+    days_window: int | None = Query(default=None, ge=1, le=365, description="Number of days to look back for signals"),
     db: AsyncSession = Depends(get_db),
     client: APIKey = Depends(verify_api_key)
 ):
@@ -38,15 +39,15 @@ async def get_ticker_sentiment(
     # example: cache_key = f"sentiment:{ticker.upper()}:{limit}"
     
     # Cache is scoped per-client to prevent cross-client data leakage.
-    # Key includes deduplication settings to prevent serving mismatched results.
-    cache_key = f"sentiment:{client.client_name}:{ticker.upper()}:{limit}:d{int(deduplicate)}:w{dedup_window_hours}"
+    # Key includes deduplication settings and days_window to prevent serving mismatched results.
+    cache_key = f"sentiment:{client.client_name}:{ticker.upper()}:{limit}:d{int(deduplicate)}:w{dedup_window_hours}:dw{days_window or 0}"
     cached_data = await redis_client.get(cache_key)
     if cached_data:
         logger.info(f"CACHE HIT: Served instantly from Redis ({ticker.upper()})")
         return json.loads(cached_data)
 
     logger.info(f"CACHE MISS: Computing in PostgreSQL for {ticker.upper()}")
-    signals = await fetch_recent_signals(db, ticker, limit, deduplicate, dedup_window_hours)
+    signals = await fetch_recent_signals(db, ticker, limit, deduplicate, dedup_window_hours, days_window)
 
     if not signals:
         return TickerSentimentResponse(

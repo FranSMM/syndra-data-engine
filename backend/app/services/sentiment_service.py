@@ -3,16 +3,16 @@ from sqlalchemy import select, any_
 from app.models.article import Article
 from app.schemas.sentiment import ArticleSignalDTO
 
-
 from sqlalchemy.orm import joinedload
+from datetime import datetime, timedelta, timezone
 
 import logging
 logger = logging.getLogger(__name__)
 
-async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, deduplicate: bool = True, dedup_window_hours: int = 3) -> list[ArticleSignalDTO]:
+async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, deduplicate: bool = True, dedup_window_hours: int = 3, days_window: int | None = None) -> list[ArticleSignalDTO]:
     """
     Fetches the latest processed articles for a given ticker from the Silver Layer.
-    Uses native SQL column filtering instead of JSONB extraction.
+    Optionally filters by days_window. Uses native SQL column filtering instead of JSONB extraction.
     """
     ticker_upper = ticker.upper()
 
@@ -22,7 +22,14 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
         select(Article)
         .options(joinedload(Article.raw_article))
         .where(ticker_upper == any_(Article.tickers))
-        .order_by(Article.published_at.desc().nullslast())
+    )
+
+    if days_window is not None:
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_window)
+        stmt = stmt.where(Article.published_at >= cutoff_date)
+
+    stmt = (
+        stmt.order_by(Article.published_at.desc().nullslast())
         .limit(limit * 2)
     )
 
