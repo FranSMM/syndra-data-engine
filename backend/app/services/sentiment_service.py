@@ -25,7 +25,7 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
     )
 
     if days_window is not None:
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_window)
+        cutoff_date = datetime.utcnow() - timedelta(days=days_window)
         stmt = stmt.where(Article.published_at >= cutoff_date)
 
     stmt = (
