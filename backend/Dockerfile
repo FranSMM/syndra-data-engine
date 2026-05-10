@@ -5,20 +5,20 @@ ENV PYTHONUNBUFFERED 1
 
 WORKDIR /code
 
-# 1. Primero solo requirements para cachear esta capa
+# Copy requirements to cache this layer
 COPY requirements.txt /code/
 
-# 2. Instalar torch (versión CPU para el VPS) y resto de dependencias
+# Install torch (CPU version for the VPS) and other dependencies
 RUN pip install torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir --upgrade -r requirements.txt
 
-# 3. Definir la caché de HuggingFace y pre-descargar el modelo FinBERT (Tarea 1)
+# Define HuggingFace and pre-download FinBERT model
 ENV HF_HOME=/models_cache
 RUN python -c "from transformers import AutoModelForSequenceClassification, AutoTokenizer; \
     AutoModelForSequenceClassification.from_pretrained('ProsusAI/finbert'); \
     AutoTokenizer.from_pretrained('ProsusAI/finbert')"
 
-# 4. Luego el código (cambios aquí no invalidan el caché de dependencias y modelos)
+# Copy code (changes here won't invalidate the dependencies/models cache)
 COPY alembic.ini /code/
 COPY ./alembic /code/alembic
 COPY ./data /code/data
