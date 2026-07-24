@@ -33,7 +33,11 @@ class TickerExtractor:
             ticker_dict = json.load(f)
 
         # FlashText expects: {'StandardName': ['alias1', 'alias2']}
-        # Our JSON maps {'AAPL': ['Apple', 'Apple Inc']}, which fits directly.
+        # We ensure the ticker itself is always treated as an alias.
+        for ticker, aliases in ticker_dict.items():
+            if ticker not in aliases:
+                aliases.append(ticker)
+
         self.kp.add_keywords_from_dict(ticker_dict)
         logger.info(
             f"TickerExtractor loaded: {len(ticker_dict)} tickers with "
