@@ -18,3 +18,14 @@ build/
 
 *_output.json
 backend/app/scraper/*.json
+
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+**/__pycache__/
+*.log
+.coverage
+.prefect/
+outputs/
+backend/alembic/versions/__pycache__/
