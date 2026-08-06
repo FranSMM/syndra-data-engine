@@ -21,23 +21,41 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 RATE_LIMIT_MAX_REQUESTS = 100  # requests per window
 RATE_LIMIT_WINDOW_SECONDS = 60  # 1-minute sliding window
 
+# Counter increment + TTL setup must happen in a single atomic step. Issuing
+# INCR and EXPIRE as separate round-trips leaves a window where a crash (or a
+# connection drop) between the two orphans the key with no TTL — Redis keeps it
+# forever and that client stays permanently at HTTP 429.
+# Lua scripts run atomically inside Redis, which closes that window and collapses
+# the three round-trips (INCR + EXPIRE + TTL) into one.
+# The `ttl < 0` branch is self-healing: it re-arms the window on any key that was
+# already orphaned by the previous implementation.
+_RATE_LIMIT_SCRIPT = """
+local current = redis.call('INCR', KEYS[1])
+local ttl = redis.call('TTL', KEYS[1])
+if current == 1 or ttl < 0 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+    ttl = tonumber(ARGV[1])
+end
+return {current, ttl}
+"""
+
+# register_script performs no I/O at import time: it only builds the Script
+# wrapper, which then uses EVALSHA with an automatic EVAL fallback.
+_rate_limit_script = redis_client.register_script(_RATE_LIMIT_SCRIPT)
+
 
 async def _enforce_rate_limit(api_key_hash: str) -> tuple[int, int]:
     """
-    Atomic rate limiter using Redis INCR + EXPIRE.
+    Atomic rate limiter backed by a Redis Lua script (INCR + EXPIRE + TTL).
     Returns (remaining_requests, seconds_until_reset).
     Raises HTTP 429 if the client exceeds RATE_LIMIT_MAX_REQUESTS per window.
     """
     rate_key = f"ratelimit:{api_key_hash}"
 
-    # INCR is atomic: creates the key with value 1 if it doesn't exist
-    current_count = await redis_client.incr(rate_key)
+    current_count, ttl = await _rate_limit_script(
+        keys=[rate_key], args=[RATE_LIMIT_WINDOW_SECONDS]
+    )
 
-    # Set TTL only on the FIRST request of the window (when count == 1)
-    if current_count == 1:
-        await redis_client.expire(rate_key, RATE_LIMIT_WINDOW_SECONDS)
-
-    ttl = await redis_client.ttl(rate_key)
     remaining = max(RATE_LIMIT_MAX_REQUESTS - current_count, 0)
 
     if current_count > RATE_LIMIT_MAX_REQUESTS:
