@@ -1,11 +1,44 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from app.core.config import settings
 from app.api.v1.endpoints import sentiment, search
 from app.api.deps import RATE_LIMIT_MAX_REQUESTS
+from app.db.vector_store import init_qdrant_collection
+
+logger = logging.getLogger(__name__)
 
 # --- Swagger UI: disabled in production to avoid exposing attack surface ---
 docs_url = "/docs" if settings.ENVIRONMENT != "production" else None
 redoc_url = "/redoc" if settings.ENVIRONMENT != "production" else None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Ensures the Qdrant collection and its payload indexes exist before the API
+    serves traffic. Without this, an API booting against a fresh Qdrant answered
+    /search/semantic with HTTP 500 until the vectorization backfill happened to
+    create the collection.
+
+    init_qdrant_collection is idempotent and synchronous (the Qdrant client is
+    blocking), so it runs in a worker thread to keep the event loop free.
+
+    Failure is deliberately non-fatal: /health and /sentiment do not depend on
+    Qdrant, so a vector-store outage degrades semantic search instead of taking
+    the whole API down.
+    """
+    try:
+        await asyncio.to_thread(init_qdrant_collection)
+    except Exception as e:
+        logger.warning(
+            f"Qdrant initialization failed at startup: {e}. "
+            "Semantic search will be unavailable until Qdrant recovers."
+        )
+    yield
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -13,6 +46,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url=docs_url,
     redoc_url=redoc_url,
+    lifespan=lifespan,
 )
 
 
