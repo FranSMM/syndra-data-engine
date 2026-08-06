@@ -21,5 +21,6 @@
 | [INC-015](./troubleshooting/015_silent_accumulation_of_pending_articles.md) | Silent Accumulation of Pending Articles (Pipeline Choke) |
 | [INC-016](./troubleshooting/016_prefect_scheduler_inactive_ephemeral_server.md) | Prefect Scheduler Inactive on Ephemeral Server |
 | [INC-017](./troubleshooting/017_alembic_orm_mismatch_silver_migration.md) | Alembic ORM Mismatch During Silver Layer Migration |
-| [INC-018](./troubleshooting/018_data_loss_scrapy_overwrite_flag.md) | Data Loss by Overwrite in Multi-Source Scrapy Ingestion || [INC-019](./troubleshooting/019_orphaned_rate_limit_key_without_ttl.md) | Orphaned Rate Limit Key Without TTL (Permanent Client Lockout) |
+| [INC-018](./troubleshooting/018_data_loss_scrapy_overwrite_flag.md) | Data Loss by Overwrite in Multi-Source Scrapy Ingestion |
+| [INC-019](./troubleshooting/019_orphaned_rate_limit_key_without_ttl.md) | Orphaned Rate Limit Key Without TTL (Permanent Client Lockout) |
 | [INC-020](./troubleshooting/020_semantic_search_500_on_uninitialized_qdrant.md) | Semantic Search HTTP 500 on a Freshly Provisioned Qdrant |
