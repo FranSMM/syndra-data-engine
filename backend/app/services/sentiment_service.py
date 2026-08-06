@@ -9,6 +9,13 @@ from datetime import datetime, timedelta, timezone
 import logging
 logger = logging.getLogger(__name__)
 
+# Deduplication discards rows, so we over-fetch to still have a chance of
+# filling `limit`. This is a heuristic, not a guarantee: a ticker whose feed is
+# mostly reprints can still return fewer than `limit` signals, which is why the
+# short-result case is logged explicitly below instead of passing unnoticed.
+DEDUP_OVERFETCH_FACTOR = 2
+
+
 async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, deduplicate: bool = True, dedup_window_hours: int = 3, days_window: int | None = None) -> list[ArticleSignalDTO]:
     """
     Fetches the latest processed articles for a given ticker from the Silver Layer.
@@ -25,12 +32,16 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
     )
 
     if days_window is not None:
-        cutoff_date = datetime.utcnow() - timedelta(days=days_window)
+        # Article.published_at is stored as a naive UTC timestamp (the enrichment
+        # pipeline strips tzinfo), so the cutoff must be naive UTC too. Built from
+        # an explicitly aware "now" because datetime.utcnow() is deprecated in 3.12+.
+        cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_window)
         stmt = stmt.where(Article.published_at >= cutoff_date)
 
+    fetch_size = limit * DEDUP_OVERFETCH_FACTOR if deduplicate else limit
     stmt = (
         stmt.order_by(Article.published_at.desc().nullslast())
-        .limit(limit * 2)
+        .limit(fetch_size)
     )
 
     result = await db.execute(stmt)
@@ -58,25 +69,44 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
         
         # Only apply deduplication if deduplicate is True
         if deduplicate:
+            # Why a single reason per article instead of counting inside the loop:
+            # one article is compared against every previously kept article, so a
+            # headline near-matching three earlier ones used to add three counts to
+            # the metric. The article was still kept exactly once. We record the
+            # first reason it survived and count it once, after the scan.
+            saved_reason = None
+
             for idx, (seen_title, seen_label, seen_time) in enumerate(seen_articles):
-                if difflib.SequenceMatcher(None, article.title, seen_title).ratio() > 0.85:
-                    if article.sentiment_label == seen_label:
-                        # Check temporal distance
-                        if article.published_at and seen_time:
-                            time_diff = abs((article.published_at - seen_time).total_seconds())
-                            if time_diff <= (dedup_window_hours * 3600):
-                                is_duplicate = True
-                                duplicate_idx = idx
-                                break
-                            else:
-                                metrics["saved_by_temporal_evolution"] += 1
-                        else:
-                            is_duplicate = True
-                            duplicate_idx = idx
-                            break
-                    else:
-                        metrics["saved_by_sentiment"] += 1
-                
+                if difflib.SequenceMatcher(None, article.title, seen_title).ratio() <= 0.85:
+                    continue
+
+                # Near-identical headline with the opposite sentiment is a genuine
+                # contrary signal, not a reprint. ML safety net (ADR 033).
+                if article.sentiment_label != seen_label:
+                    saved_reason = saved_reason or "saved_by_sentiment"
+                    continue
+
+                if article.published_at and seen_time:
+                    time_diff = abs((article.published_at - seen_time).total_seconds())
+                    if time_diff <= (dedup_window_hours * 3600):
+                        is_duplicate = True
+                        duplicate_idx = idx
+                        break
+                    # Same story, same sentiment, but far enough apart in time to
+                    # be a genuine follow-up rather than a reprint.
+                    saved_reason = saved_reason or "saved_by_temporal_evolution"
+                    continue
+
+                # No usable timestamps on either side: fall back to treating the
+                # title+sentiment match as a duplicate.
+                is_duplicate = True
+                duplicate_idx = idx
+                break
+
+            if not is_duplicate and saved_reason:
+                metrics[saved_reason] += 1
+
+
         if is_duplicate:
             # Tie-breaker: If they have the exact same timestamp, prefer the longer, more informative title
             seen_time = seen_articles[duplicate_idx][2]
@@ -131,5 +161,23 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
             break
 
     logger.info(f"Deduplication Metrics for {ticker_upper} (Limit {limit}, Window {dedup_window_hours}h) | Evaluated: {metrics['total_evaluated']} | Discarded: {metrics['discarded_duplicates']} | Saved by Sentiment: {metrics['saved_by_sentiment']} | Saved by Time: {metrics['saved_by_temporal_evolution']}")
-    
+
+    # A short result set has two very different causes and the client cannot tell
+    # them apart from the response alone: either the Silver Layer genuinely holds
+    # fewer articles for this ticker, or deduplication ate into the over-fetch
+    # budget. Surface the difference so it shows up in the logs instead of looking
+    # like thin coverage.
+    if len(signals) < limit:
+        if metrics["total_evaluated"] < fetch_size:
+            logger.info(
+                f"Short result for {ticker_upper}: {len(signals)}/{limit} signals — "
+                f"Silver Layer only holds {metrics['total_evaluated']} matching articles."
+            )
+        else:
+            logger.warning(
+                f"Short result for {ticker_upper}: {len(signals)}/{limit} signals after "
+                f"deduplicating {metrics['total_evaluated']} fetched articles. "
+                f"Consider raising DEDUP_OVERFETCH_FACTOR (currently {DEDUP_OVERFETCH_FACTOR})."
+            )
+
     return signals
