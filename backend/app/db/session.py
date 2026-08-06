@@ -20,13 +20,8 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False # Critical for async operations
 )
 
-# FastAPI Dependency
-async def get_db() -> AsyncSession: # type: ignore
-    """
-    Yields a database session and ensures it is closed after the request.
-    """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+# NOTE: the FastAPI request-scoped dependency lives in app/api/deps.py::get_db.
+# A second, slightly different copy used to sit here and was never imported by
+# anything — two definitions of the same dependency is an invitation to drift.
+# This module owns the engine and the session factory only; the ETL scripts and
+# the API both build on AsyncSessionLocal directly.

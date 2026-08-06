@@ -24,4 +24,9 @@ COPY ./alembic /code/alembic
 COPY ./data /code/data
 COPY ./app /code/app
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Production-safe default. This is the exact image pushed to GHCR and pulled by
+# the VPS, so it must never boot with --reload: the reloader spawns a file
+# watcher, burns CPU/RAM and is explicitly unsupported for production serving.
+# Local development re-enables hot reload through the `command:` override in
+# docker-compose.yml, mirroring how docker-compose.prod.yml sets --workers 2.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

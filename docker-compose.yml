@@ -42,11 +42,18 @@ services:
     build: ./backend
     container_name: syndra_api
     restart: unless-stopped
+    # Hot reload is a local-development concern, not a property of the image.
+    # The Dockerfile CMD stays production-safe; this override adds --reload on
+    # top of the bind-mounted ./backend/app below.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     volumes:
       - ./backend/app:/code/app
       - ./backend/tests:/code/tests
       - ./backend/alembic:/code/alembic
       - ./backend/alembic.ini:/code/alembic.ini
+      # pytest.ini carries asyncio_mode=auto; without it the suite runs in
+      # strict mode inside the container and every unmarked async test errors.
+      - ./backend/pytest.ini:/code/pytest.ini
       # Cache for ML models (downloaded once, persists across restarts)
       - ./data/huggingface:/root/.cache/huggingface
     
