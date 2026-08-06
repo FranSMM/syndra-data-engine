@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Syndra · self-hosted financial news intelligence API</title>
+<meta name="description" content="Syndra ingests public financial news, enriches it with locally-run NLP (FinBERT, all-MiniLM-L6-v2) and serves it as a versioned REST API, deployed inside your own infrastructure.">
+<meta name="theme-color" content="#f7eddf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://syndradata.com/">
+
+<!-- Open Graph / Twitter: the URL gets pasted into LinkedIn and DMs. og-card.png is 1200x630. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Syndra">
+<meta property="og:url" content="https://syndradata.com/">
+<meta property="og:title" content="Syndra · self-hosted financial news intelligence API">
+<meta property="og:description" content="Locally-run NLP over public financial news, served as a versioned REST API. Deployed inside your own infrastructure. Your data never transits a third party.">
+<meta property="og:image" content="https://syndradata.com/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Syndra: financial news processed by locally-run NLP, served as a versioned REST API.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Syndra · self-hosted financial news intelligence API">
+<meta name="twitter:description" content="Locally-run NLP over public financial news, served as a versioned REST API. Self-hosted: your data never transits a third party.">
+<meta name="twitter:image" content="https://syndradata.com/og-card.png">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- tokens.css first: it is the single source of truth for colour. -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="preload" href="fonts/SpaceGrotesk-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/JetBrainsMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+<body>
+<a class="skip" href="#main"><span data-l="en">Skip to content</span><span data-l="es">Ir al contenido</span></a>
+
+<header class="hdr">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <!-- Node-graph mark: the wordmark geometry, reused throughout the page. -->
+      <svg width="21" height="17" viewBox="0 0 21 17" aria-hidden="true"><path class="edge" d="M3 14 8 8.5 12.5 11 18 3" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle class="node" cx="3" cy="14" r="1.9"/><circle class="node" cx="8" cy="8.5" r="1.7"/><circle class="node" cx="12.5" cy="11" r="1.7"/><circle class="node-lead" cx="18" cy="3" r="2.4"/></svg>
+      SYNDRA
+    </a>
+    <nav class="navlinks" aria-label="Sections">
+      <a href="#problem"><span data-l="en">Why</span><span data-l="es">Por qué</span></a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#api">API</a>
+      <a href="#selfhosted"><span data-l="en">Self-hosted</span><span data-l="es">Autoalojado</span></a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="hdr-right">
+      <!-- Mobile nav: <details>, so it works with JS disabled. -->
+      <details class="mobnav">
+        <summary><span data-l="en">Menu</span><span data-l="es">Menú</span></summary>
+        <ul>
+          <li><a href="#problem"><span data-l="en">Why</span><span data-l="es">Por qué</span></a></li>
+          <li><a href="#pipeline">Pipeline</a></li>
+          <li><a href="#api">API</a></li>
+          <li><a href="#selfhosted"><span data-l="en">Self-hosted</span><span data-l="es">Autoalojado</span></a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </details>
+      <div class="langsw" role="group" aria-label="Language">
+        <button type="button" data-lang-btn="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang-btn="es" aria-pressed="false">ES</button>
+      </div>
+      <a class="btn-sm" href="#access"><span data-l="en">Request access</span><span data-l="es">Solicitar acceso</span></a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<a id="top"></a>
+
+<!-- ============================ 1. HERO ============================ -->
+<section class="hero">
+  <svg class="constellation" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g class="divider-edge" stroke-width="1">
+      <path d="M60 430 210 350 340 392 470 250 610 300 742 160 880 214 1010 96 1140 140"/>
+      <path d="M210 350 246 190 470 250"/><path d="M610 300 640 452 880 214"/><path d="M246 190 470 92 742 160"/>
+    </g>
+    <g class="divider-node">
+      <circle cx="60" cy="430" r="3.4"/><circle cx="210" cy="350" r="3.4"/><circle cx="340" cy="392" r="3.4"/>
+      <circle cx="470" cy="250" r="3.4"/><circle cx="610" cy="300" r="3.4"/><circle cx="742" cy="160" r="3.4"/>
+      <circle cx="880" cy="214" r="3.4"/><circle cx="1010" cy="96" r="3.4"/><circle cx="1140" cy="140" r="3.4"/>
+      <circle cx="246" cy="190" r="3.4"/><circle cx="640" cy="452" r="3.4"/><circle cx="470" cy="92" r="3.4"/>
+    </g>
+  </svg>
+  <div class="wrap">
+    <div>
+      <p class="badge"><span class="pulse"></span><span data-l="en">API-first · self-hosted · no GUI</span><span data-l="es">API-first · autoalojado · sin GUI</span></p>
+      <h1>
+        <span data-l="en">Financial news, processed by locally-run NLP and served as a versioned REST API.</span>
+        <span data-l="es">Noticias financieras, procesadas con NLP local y servidas como una API REST versionada.</span>
+      </h1>
+      <p class="hero-sub">
+        <span data-l="en">Syndra deploys inside your own infrastructure. FinBERT scores sentiment and all-MiniLM-L6-v2 builds the embeddings on your hardware. Every response is governed by a strict Pydantic contract, and your data never transits a third party.</span>
+        <span data-l="es">Syndra se despliega dentro de tu propia infraestructura. FinBERT calcula el sentimiento y all-MiniLM-L6-v2 genera los embeddings en tu hardware. Cada respuesta está gobernada por un contrato Pydantic estricto y tus datos nunca pasan por un tercero.</span>
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://api.syndradata.com/docs">
+          <span data-l="en">Read the API docs</span><span data-l="es">Ver la documentación</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7h8M7.5 3.5 11 7l-3.5 3.5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="https://syndra-demo.streamlit.app/" target="_blank" rel="noopener"><span data-l="en">Try the live demo</span><span data-l="es">Probar la demo</span></a>
+      </div>
+      <p class="hero-note">
+        <span data-l="en">No trading signals. No dashboard. A data feed for engineers.</span>
+        <span data-l="es">Sin señales de trading. Sin dashboard. Un feed de datos para ingeniería.</span>
+      </p>
+    </div>
+
+    <div class="card raised">
+      <div class="card-bar">
+        <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true"><path class="edge" d="M2.5 11 7 7.5 11.5 9.5 17.5 3" stroke-width="1"/><circle class="node" cx="2.5" cy="11" r="1.6"/><circle class="node" cx="7" cy="7.5" r="1.6"/><circle class="node" cx="11.5" cy="9.5" r="1.6"/><circle class="node" cx="17.5" cy="3" r="1.9"/></svg>
+        GET /api/v1/sentiment/AAPL
+      </div>
+      <pre><code><span class="tok-p">{</span>
+  <span class="tok-k">"ticker"</span><span class="tok-p">:</span> <span class="tok-s">"AAPL"</span><span class="tok-p">,</span>
+  <span class="tok-k">"sentiment_label"</span><span class="tok-p">:</span> <span class="tok-sent">"positive"</span><span class="tok-p">,</span>
+  <span class="tok-k">"sentiment_score"</span><span class="tok-p">:</span> <span class="tok-sent">0.6142</span><span class="tok-p">,</span>
+  <span class="tok-k">"article_count"</span><span class="tok-p">:</span> <span class="tok-v">37</span><span class="tok-p">,</span>
+  <span class="tok-k">"time_window"</span><span class="tok-p">:</span> <span class="tok-s">"24h"</span>
+<span class="tok-p">}</span></code></pre>
+      <div class="card-foot">
+        <span class="chip" style="border:0;padding:0"><span class="sw sw-pos"></span>positive</span>
+        <span>P(pos) − P(neg)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== 2. METRICS STRIP ======================== -->
+<section class="sec alt metrics-strip" aria-label="Measured system metrics">
+  <div class="wrap">
+    <div class="metrics">
+      <div class="metric">
+        <!-- Swap these four figures after re-running the counts (see README). -->
+        <div class="fig" data-count="50000" data-suffix="+">50,000+</div>
+        <p class="cap"><span data-l="en">Articles ingested and enriched</span><span data-l="es">Artículos ingeridos y enriquecidos</span></p>
+      </div>
+      <div class="metric">
+        <div class="fig" data-count="100" data-suffix="%">100%</div>
+        <p class="cap"><span data-l="en">Processing rate: 0 failed, 0 pending</span><span data-l="es">Tasa de procesado: 0 fallidos, 0 pendientes</span></p>
+      </div>
+      <div class="metric">
+        <div class="fig"><span data-count="350">350</span>–<span data-count="500">500</span></div>
+        <p class="cap"><span data-l="en">Articles per day, unattended, 12+ days</span><span data-l="es">Artículos por día, sin supervisión, 12+ días</span></p>
+      </div>
+      <div class="metric">
+        <div class="fig">&lt;<span data-count="300">300</span>ms</div>
+        <p class="cap"><span data-l="en">p95 semantic search latency</span><span data-l="es">Latencia p95 de búsqueda semántica</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================== 3. THE PROBLEM ======================== -->
+<section class="sec" id="problem">
+  <div class="wrap">
+    <div class="kicker">
+      <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+      <p class="eyebrow">01 / <span data-l="en">The problem</span><span data-l="es">El problema</span></p>
+    </div>
+    <h2 class="h2" style="max-width:20ch">
+      <span data-l="en">Financial data teams have three bad options.</span>
+      <span data-l="es">Los equipos de datos financieros tienen tres malas opciones.</span>
+    </h2>
+    <div class="opts">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col"><span data-l="en">Option</span><span data-l="es">Opción</span></th>
+            <th scope="col"><span data-l="en">What breaks</span><span data-l="es">Qué falla</span></th>
+            <th scope="col"><span data-l="en">Cost</span><span data-l="es">Coste</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="opt">Bloomberg / Refinitiv</td>
+            <td><span data-l="en">Priced for institutions. Terminal-shaped, not pipeline-shaped. Your data leaves your perimeter.</span><span data-l="es">Precio institucional. Pensado como terminal, no como pipeline. Tus datos salen de tu perímetro.</span></td>
+            <td class="cost">~$24k/yr</td>
+          </tr>
+          <tr>
+            <td class="opt"><span data-l="en">Free news APIs</span><span data-l="es">APIs gratuitas</span></td>
+            <td><span data-l="en">No NLP, no data contract, no schema guarantees. Silent shape changes break you in production.</span><span data-l="es">Sin NLP, sin contrato de datos, sin garantías de esquema. Cambios silenciosos de forma te rompen en producción.</span></td>
+            <td class="cost">$0 + <span data-l="en">risk</span><span data-l="es">riesgo</span></td>
+          </tr>
+          <tr>
+            <td class="opt"><span data-l="en">Build it yourself</span><span data-l="es">Construirlo tú mismo</span></td>
+            <td><span data-l="en">Anti-bot blocking, GPU inference, orchestration, migrations, backfills. A permanent second product to maintain.</span><span data-l="es">Bloqueo anti-bot, inferencia en GPU, orquestación, migraciones, backfills. Un segundo producto permanente que mantener.</span></td>
+            <td class="cost"><span data-l="en">Eng. months</span><span data-l="es">Meses-ing.</span></td>
+          </tr>
+          <tr class="us">
+            <td class="opt"><span class="with-mark">
+              <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path class="edge" d="M2 9 6 6 10 7.5 14 2.5" stroke-width="1.1"/><circle class="node" cx="2" cy="9" r="1.5"/><circle class="node" cx="6" cy="6" r="1.5"/><circle class="node" cx="10" cy="7.5" r="1.5"/><circle class="node" cx="14" cy="2.5" r="1.8"/></svg>
+              Syndra</span></td>
+            <td><span data-l="en">Processed, structured, contract-guaranteed financial intelligence over REST, deployed inside your own infrastructure.</span><span data-l="es">Inteligencia financiera procesada, estructurada y garantizada por contrato sobre REST, desplegada dentro de tu propia infraestructura.</span></td>
+            <td class="cost"><span data-l="en">A fraction</span><span data-l="es">Una fracción</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4. HOW IT WORKS / PIPELINE ================= -->
+<section class="sec alt" id="pipeline">
+  <div class="wrap">
+    <div class="kicker">
+      <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+      <p class="eyebrow">02 / <span data-l="en">How it works</span><span data-l="es">Cómo funciona</span></p>
+    </div>
+    <h2 class="h2" style="max-width:26ch">
+      <span data-l="en">A medallion pipeline: Bronze, Silver, Gold.</span>
+      <span data-l="es">Un pipeline medallion: Bronze, Silver, Gold.</span>
+    </h2>
+    <p class="lede">
+      <span data-l="en">Each stage has one job and one contract with the next. Failures are isolated, states are explicit, and no article reaches the API until it has passed validation and enrichment.</span>
+      <span data-l="es">Cada etapa tiene una única responsabilidad y un contrato con la siguiente. Los fallos están aislados, los estados son explícitos y ningún artículo llega a la API sin pasar validación y enriquecimiento.</span>
+    </p>
+    <div class="diagram">
+      <svg viewBox="0 0 1080 258" width="100%" role="img" aria-label="Pipeline: Ingest (Scrapy, Prefect) to Validate (Pydantic v2) to Enrich (FinBERT, CUDA) to Index (Qdrant, MiniLM) to Serve (FastAPI, Redis)">
+        <text class="d-band" x="8" y="20">BRONZE</text><text class="d-band" x="440" y="20">SILVER</text><text class="d-band" x="878" y="20">GOLD</text>
+        <line class="d-rail" x1="8" y1="30" x2="424" y2="30"/><line class="d-rail" x1="440" y1="30" x2="862" y2="30"/><line class="d-rail" x1="878" y1="30" x2="1072" y2="30"/>
+
+        <rect class="d-stage" x="8" y="58" width="196" height="118" rx="9"/>
+        <circle class="d-dot-hi" cx="28" cy="80" r="3.6"/>
+        <text class="d-title" x="42" y="85">Ingest</text>
+        <text class="d-tech" x="28" y="114">Scrapy</text><text class="d-tech" x="28" y="132">Prefect flows</text><text class="d-note" x="28" y="156">raw_articles</text>
+
+        <line class="d-link" x1="204" y1="117" x2="246" y2="117"/><circle class="d-dot" cx="225" cy="117" r="3.2"/>
+
+        <rect class="d-stage" x="246" y="58" width="196" height="118" rx="9"/>
+        <circle class="d-dot-hi" cx="266" cy="80" r="3.6"/>
+        <text class="d-title" x="280" y="85">Validate</text>
+        <text class="d-tech" x="266" y="114">Pydantic v2</text><text class="d-tech" x="266" y="132">data profiling</text><text class="d-note" x="266" y="156">fail-fast</text>
+
+        <line class="d-link" x1="442" y1="117" x2="484" y2="117"/><circle class="d-dot" cx="463" cy="117" r="3.2"/>
+
+        <rect class="d-stage" x="484" y="58" width="196" height="118" rx="9"/>
+        <circle class="d-dot-hi" cx="504" cy="80" r="3.6"/>
+        <text class="d-title" x="518" y="85">Enrich</text>
+        <text class="d-tech" x="504" y="114">FinBERT · CUDA</text><text class="d-tech" x="504" y="132">ticker extraction</text><text class="d-note" x="504" y="156">P(pos) − P(neg)</text>
+
+        <line class="d-link" x1="680" y1="117" x2="722" y2="117"/><circle class="d-dot" cx="701" cy="117" r="3.2"/>
+
+        <rect class="d-stage" x="722" y="58" width="152" height="118" rx="9"/>
+        <circle class="d-dot-hi" cx="742" cy="80" r="3.6"/>
+        <text class="d-title" x="756" y="85">Index</text>
+        <text class="d-tech" x="742" y="114">Qdrant</text><text class="d-tech" x="742" y="132">MiniLM-L6-v2</text><text class="d-note" x="742" y="156">CPU-isolated</text>
+
+        <line class="d-link-hi" x1="874" y1="117" x2="916" y2="117"/><circle class="d-dot-hi" cx="895" cy="117" r="3.2"/>
+
+        <rect class="d-stage-hi" x="916" y="58" width="156" height="118" rx="9"/>
+        <circle class="d-dot-hi" cx="936" cy="80" r="4.2"/>
+        <text class="d-title-hi" x="950" y="85">Serve</text>
+        <text class="d-tech-hi" x="936" y="114">FastAPI</text><text class="d-tech-hi" x="936" y="132">Redis cache</text><text class="d-note-hi" x="936" y="156">/api/v1</text>
+
+        <rect class="d-base" x="8" y="202" width="1064" height="44" rx="8"/>
+        <text class="d-basetext" x="28" y="229">PostgreSQL 16 · JSONB + GIN indexes</text>
+        <text class="d-basetext" x="376" y="229">Docker Compose · one command deploy</text>
+        <text class="d-basetext" x="784" y="229">Alembic migrations · idempotent loads</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== 5. SHOW THE PAYLOAD ===================== -->
+<section class="sec" id="api">
+  <div class="wrap">
+    <div class="kicker">
+      <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+      <p class="eyebrow">03 / <span data-l="en">The payload</span><span data-l="es">El payload</span></p>
+    </div>
+    <h2 class="h2" style="max-width:24ch">
+      <span data-l="en">Read the response before you read the pitch.</span>
+      <span data-l="es">Lee la respuesta antes de leer el discurso.</span>
+    </h2>
+
+    <div class="grid2" style="margin-top:44px;gap:24px">
+      <div class="card">
+        <div class="card-bar"><span class="verb">GET</span><span class="endpoint">/api/v1/sentiment/{ticker}</span></div>
+        <pre class="wrap-cmd"><code><span class="tok-p">$</span> <span class="tok-k">curl</span> -s https://syndra.internal/api/v1/sentiment/AAPL?window=24h \
+  -H <span class="tok-v">"X-API-Key: $SYNDRA_KEY"</span></code></pre>
+        <pre><code><span class="tok-p">{</span>
+  <span class="tok-k">"ticker"</span><span class="tok-p">:</span> <span class="tok-s">"AAPL"</span><span class="tok-p">,</span>
+  <span class="tok-c">// label, never colour alone</span>
+  <span class="tok-k">"sentiment_label"</span><span class="tok-p">:</span> <span class="tok-sent">"positive"</span><span class="tok-p">,</span>
+  <span class="tok-k">"sentiment_score"</span><span class="tok-p">:</span> <span class="tok-sent">0.6142</span><span class="tok-p">,</span>
+  <span class="tok-k">"article_count"</span><span class="tok-p">:</span> <span class="tok-v">37</span><span class="tok-p">,</span>
+  <span class="tok-k">"time_window"</span><span class="tok-p">:</span> <span class="tok-s">"24h"</span><span class="tok-p">,</span>
+  <span class="tok-k">"recent_signals"</span><span class="tok-p">: [</span>
+    <span class="tok-p">{</span>
+      <span class="tok-k">"title"</span><span class="tok-p">:</span> <span class="tok-s">"Apple expands silicon roadmap"</span><span class="tok-p">,</span>
+      <span class="tok-k">"source"</span><span class="tok-p">:</span> <span class="tok-s">"global_finance_rss"</span><span class="tok-p">,</span>
+      <span class="tok-k">"published_at"</span><span class="tok-p">:</span> <span class="tok-s">"2026-08-05T07:12:00Z"</span><span class="tok-p">,</span>
+      <span class="tok-k">"score"</span><span class="tok-p">:</span> <span class="tok-sent">0.8431</span>
+    <span class="tok-p">}</span>
+  <span class="tok-p">]</span>
+<span class="tok-p">}</span></code></pre>
+      </div>
+
+      <div class="col">
+        <div class="card">
+          <div class="card-bar"><span class="verb">GET</span><span class="endpoint">/api/v1/search/semantic</span></div>
+          <pre><code><span class="tok-p">$</span> <span class="tok-k">curl</span> -s "…/search/semantic\
+     ?q=<span class="tok-v">supply+chain+risk</span>"
+
+<span class="tok-p">[{</span>
+  <span class="tok-k">"article_id"</span><span class="tok-p">:</span> <span class="tok-v">41288</span><span class="tok-p">,</span>
+  <span class="tok-k">"similarity"</span><span class="tok-p">:</span> <span class="tok-v">0.7913</span><span class="tok-p">,</span>
+  <span class="tok-k">"tickers"</span><span class="tok-p">: [</span><span class="tok-s">"TSM"</span><span class="tok-p">,</span> <span class="tok-s">"NVDA"</span><span class="tok-p">]</span>
+<span class="tok-p">}]</span></code></pre>
+        </div>
+
+        <div class="card card-body">
+          <p class="label"><span data-l="en">Contract guarantees</span><span data-l="es">Garantías del contrato</span></p>
+          <ul class="guarantees">
+            <li><span data-l="en">Egress DTOs are separate from internal ORM models, so refactors never change your schema.</span><span data-l="es">Los DTO de egreso están separados de los modelos ORM internos, así que un refactor nunca cambia tu esquema.</span></li>
+            <li><span data-l="en">Versioned path (<code>/api/v1</code>). Breaking changes get a new version, not a new field type.</span><span data-l="es">Ruta versionada (<code>/api/v1</code>). Los cambios rompedores generan una versión nueva, no un tipo nuevo.</span></li>
+            <li><span data-l="en">Hard <code>limit</code> ceiling of 100 signals per request, enforced by Pydantic.</span><span data-l="es">Techo estricto de <code>limit</code> a 100 señales por petición, forzado por Pydantic.</span></li>
+            <li><span data-l="en">Continuous score, not three buckets. A mildly pessimistic neutral reads −0.0664.</span><span data-l="es">Score continuo, no tres cubos. Un neutral algo pesimista da −0,0664.</span></li>
+          </ul>
+        </div>
+
+        <div class="card card-body">
+          <p class="label"><span data-l="en">Sentiment encoding</span><span data-l="es">Codificación del sentimiento</span></p>
+          <div class="chips">
+            <span class="chip"><span class="sw sw-neg"></span>negative</span>
+            <span class="chip"><span class="sw sw-neu"></span>neutral</span>
+            <span class="chip"><span class="sw sw-pos"></span>positive</span>
+          </div>
+          <p class="note">
+            <span data-l="en">Diverging blue↔red with a gray midpoint, never red/green, and the label always travels with the colour.</span>
+            <span data-l="es">Escala divergente azul↔rojo con punto medio gris, nunca rojo/verde, y la etiqueta siempre viaja con el color.</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 6. WHY SELF-HOSTED ======================= -->
+<section class="sec alt" id="selfhosted">
+  <div class="wrap grid2">
+    <div>
+      <div class="kicker">
+        <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+        <p class="eyebrow">04 / <span data-l="en">Self-hosted</span><span data-l="es">Autoalojado</span></p>
+      </div>
+      <h2 class="h2">
+        <span data-l="en">Your data never leaves your perimeter.</span>
+        <span data-l="es">Tus datos nunca salen de tu perímetro.</span>
+      </h2>
+      <p class="lede" style="max-width:50ch">
+        <span data-l="en">Syndra ships as Docker Compose and runs in your VPC or on-prem. Ingestion, inference and storage all execute on your hardware. There is no Syndra-operated cloud to trust, no vendor egress to audit, and no third-party model API in the path.</span>
+        <span data-l="es">Syndra se distribuye como Docker Compose y se ejecuta en tu VPC o en on-prem. La ingesta, la inferencia y el almacenamiento corren en tu hardware. No hay una nube operada por Syndra en la que confiar, ni egreso de proveedor que auditar, ni API de modelos de terceros en la ruta.</span>
+      </p>
+      <div class="card" style="margin-top:28px">
+        <pre class="wrap-cmd" style="border-bottom:0"><code><span class="tok-p">$</span> git clone && cp .env.example .env
+<span class="tok-p">$</span> <span class="tok-k">make</span> up   <span class="tok-c"># postgres · qdrant · redis · api · prefect</span></code></pre>
+      </div>
+    </div>
+    <div class="stack">
+      <div>
+        <h3><span data-l="en">Data residency</span><span data-l="es">Residencia del dato</span></h3>
+        <p><span data-l="en">The dataset lives in your PostgreSQL, in your region, under your retention policy.</span><span data-l="es">El dataset vive en tu PostgreSQL, en tu región, bajo tu política de retención.</span></p>
+      </div>
+      <div>
+        <h3><span data-l="en">No third-party transit</span><span data-l="es">Sin tránsito por terceros</span></h3>
+        <p><span data-l="en">Models are local weights, FinBERT and all-MiniLM-L6-v2, cached on disk and never called over the wire.</span><span data-l="es">Los modelos son pesos locales, FinBERT y all-MiniLM-L6-v2, en caché en disco y nunca llamados por red.</span></p>
+      </div>
+      <div>
+        <h3><span data-l="en">Procurement-friendly</span><span data-l="es">Apto para compras</span></h3>
+        <p><span data-l="en">One deployment boundary to review. No sub-processor chain, no DPA archaeology.</span><span data-l="es">Un único límite de despliegue que revisar. Sin cadena de subencargados ni arqueología de DPA.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 7. BYOS ============================ -->
+<section class="sec">
+  <div class="wrap grid2 center">
+    <div>
+      <div class="kicker">
+        <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+        <p class="eyebrow">05 / BYOS</p>
+      </div>
+      <h2 class="h2"><span data-l="en">Bring your own source.</span><span data-l="es">Trae tu propia fuente.</span></h2>
+      <p class="lede" style="max-width:50ch">
+        <span data-l="en">You declare the feeds in <code class="mono">feeds.json</code> and the engine ingests them. Syndra sells the pipeline, not somebody else's scraped archive, so licensing stays between you and the publishers you already have rights to.</span>
+        <span data-l="es">Tú declaras los feeds en <code class="mono">feeds.json</code> y el motor los ingiere. Syndra vende el pipeline, no el archivo scrapeado de otro, así que la licencia queda entre ti y los publishers sobre los que ya tienes derechos.</span>
+      </p>
+      <p class="hero-note" style="max-width:52ch">
+        <span data-l="en">An architectural capability, configured per deployment. You decide which feeds the engine reads.</span>
+        <span data-l="es">Una capacidad arquitectónica, configurada por despliegue. Tú decides qué feeds lee el motor.</span>
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-bar">feeds.json</div>
+      <pre><code><span class="tok-p">[</span>
+  <span class="tok-p">{</span>
+    <span class="tok-k">"name"</span><span class="tok-p">:</span> <span class="tok-s">"global_finance_rss"</span><span class="tok-p">,</span>
+    <span class="tok-k">"url"</span><span class="tok-p">:</span> <span class="tok-s">"https://…/rss"</span><span class="tok-p">,</span>
+    <span class="tok-k">"schedule"</span><span class="tok-p">:</span> <span class="tok-s">"*/30 * * * *"</span><span class="tok-p">,</span>
+    <span class="tok-k">"parser"</span><span class="tok-p">:</span> <span class="tok-s">"rss.generic"</span>
+  <span class="tok-p">}</span>
+<span class="tok-p">]</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= 8. FAQ ============================ -->
+<section class="sec alt" id="faq">
+  <div class="wrap">
+    <div class="kicker">
+      <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+      <p class="eyebrow">06 / FAQ</p>
+    </div>
+    <h2 class="h2"><span data-l="en">Questions engineers ask first.</span><span data-l="es">Lo que pregunta primero un ingeniero.</span></h2>
+    <div class="faq">
+      <details>
+        <summary><span><span data-l="en">Is this a trading signal?</span><span data-l="es">¿Es una señal de trading?</span></span><span class="mk" aria-hidden="true"></span></summary>
+        <p><span data-l="en">No. Public news is priced in almost instantly, so we make no claim of alpha. Syndra is structured input for your own research and risk models, not a recommendation engine.</span><span data-l="es">No. Las noticias públicas se descuentan casi al instante, así que no reclamamos alfa. Syndra es input estructurado para tus propios modelos de research y riesgo, no un motor de recomendaciones.</span></p>
+      </details>
+      <details>
+        <summary><span><span data-l="en">Which models run, exactly?</span><span data-l="es">¿Qué modelos se ejecutan exactamente?</span></span><span class="mk" aria-hidden="true"></span></summary>
+        <p><span data-l="en">FinBERT for sentiment, on GPU via CUDA when available, in an isolated subprocess. all-MiniLM-L6-v2 for embeddings, pinned to CPU so it cannot contend for VRAM. Both are local weights.</span><span data-l="es">FinBERT para sentimiento, en GPU vía CUDA cuando está disponible, en un subproceso aislado. all-MiniLM-L6-v2 para embeddings, fijado a CPU para que no compita por VRAM. Ambos son pesos locales.</span></p>
+      </details>
+      <details>
+        <summary><span><span data-l="en">What hardware does it need?</span><span data-l="es">¿Qué hardware necesita?</span></span><span class="mk" aria-hidden="true"></span></summary>
+        <p><span data-l="en">It runs CPU-only. A CUDA GPU is optional and materially faster for enrichment batches; inference is chunked iteratively so batch size never dictates the memory ceiling.</span><span data-l="es">Funciona solo con CPU. Una GPU CUDA es opcional y acelera notablemente los lotes de enriquecimiento; la inferencia se trocea de forma iterativa para que el tamaño de lote no dicte el techo de memoria.</span></p>
+      </details>
+      <details>
+        <summary><span><span data-l="en">How is the score computed?</span><span data-l="es">¿Cómo se calcula el score?</span></span><span class="mk" aria-hidden="true"></span></summary>
+        <p><span data-l="en">Net impact: P(positive) − P(negative) over the full class distribution, so a nominally neutral article still carries its directional bias instead of collapsing to zero.</span><span data-l="es">Impacto neto: P(positivo) − P(negativo) sobre toda la distribución de clases, de modo que un artículo nominalmente neutral conserva su sesgo direccional en lugar de colapsar a cero.</span></p>
+      </details>
+      <details>
+        <summary><span><span data-l="en">How do I authenticate?</span><span data-l="es">¿Cómo me autentico?</span></span><span class="mk" aria-hidden="true"></span></summary>
+        <p><span data-l="en">A static API key in the <code>X-API-Key</code> header, issued per deployment. Since the instance is yours, key rotation and rate limits are yours to set too.</span><span data-l="es">Una API key estática en la cabecera <code>X-API-Key</code>, emitida por despliegue. Como la instancia es tuya, la rotación de claves y los límites de tasa también los defines tú.</span></p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 9. ACCESS =========================== -->
+<section class="sec" id="access">
+  <div class="wrap grid2">
+    <div>
+      <div class="kicker">
+        <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
+        <p class="eyebrow">07 / <span data-l="en">Access</span><span data-l="es">Acceso</span></p>
+      </div>
+      <h2 class="h2"><span data-l="en">Request access.</span><span data-l="es">Solicita acceso.</span></h2>
+      <p class="lede" style="max-width:48ch">
+        <span data-l="en">Onboarding is manual and deliberate: a short call about your feeds and infrastructure, then a deployment. No self-serve billing, no tiers to compare.</span>
+        <span data-l="es">El onboarding es manual y deliberado: una llamada corta sobre tus feeds e infraestructura y después un despliegue. Sin facturación self-serve ni planes que comparar.</span>
+      </p>
+      <p class="hero-note">
+        <span data-l="en">Prefer email? </span><span data-l="es">¿Prefieres email? </span><a href="mailto:syndradata@gmail.com">syndradata@gmail.com</a>
+      </p>
+    </div>
+    <!-- mailto: fallback. Swap action= for a self-hosted endpoint when one exists. -->
+    <form class="access" action="mailto:syndradata@gmail.com" method="post" enctype="text/plain" novalidate>
+      <label>
+        <span class="lbl"><span data-l="en">Name</span><span data-l="es">Nombre</span></span>
+        <input type="text" name="name" autocomplete="name" required>
+      </label>
+      <label>
+        <span class="lbl"><span data-l="en">Work email</span><span data-l="es">Email de trabajo</span></span>
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+      <label>
+        <span class="lbl"><span data-l="en">Company</span><span data-l="es">Empresa</span></span>
+        <input type="text" name="company" autocomplete="organization">
+      </label>
+      <label>
+        <span class="lbl"><span data-l="en">Use case</span><span data-l="es">Caso de uso</span></span>
+        <textarea name="use_case" rows="4"></textarea>
+      </label>
+      <p class="err" data-form-error role="status"></p>
+      <button type="submit"><span data-l="en">Send request</span><span data-l="es">Enviar solicitud</span></button>
+    </form>
+  </div>
+</section>
+</main>
+
+<!-- =========================== 10. FOOTER ========================== -->
+<footer>
+  <div class="wrap foot-top">
+    <div>
+      <div class="brand">
+        <svg width="21" height="17" viewBox="0 0 21 17" aria-hidden="true"><path class="edge" d="M3 14 8 8.5 12.5 11 18 3" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle class="node" cx="3" cy="14" r="1.9"/><circle class="node" cx="8" cy="8.5" r="1.7"/><circle class="node" cx="12.5" cy="11" r="1.7"/><circle class="node-lead" cx="18" cy="3" r="2.4"/></svg>
+        SYNDRA
+      </div>
+      <p>
+        <span data-l="en">Architecture decisions, engineering playbooks and incident reports are public in the repository.</span>
+        <span data-l="es">Las decisiones de arquitectura, los playbooks de ingeniería y los informes de incidencias son públicos en el repositorio.</span>
+      </p>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <div>
+        <p class="label"><span data-l="en">Product</span><span data-l="es">Producto</span></p>
+        <a href="https://api.syndradata.com/docs"><span data-l="en">API docs</span><span data-l="es">Documentación</span></a>
+        <a href="#api"><span data-l="en">Live demo</span><span data-l="es">Demo</span></a>
+        <a href="#pipeline">Pipeline</a>
+      </div>
+      <div>
+        <p class="label">Contact</p>
+        <a href="https://github.com/FranSMM/syndra-docs">GitHub</a>
+        <a href="https://www.linkedin.com/in/francisco-montesinos/">LinkedIn</a>
+        <a href="mailto:syndradata@gmail.com">Email</a>
+      </div>
+    </nav>
+  </div>
+  <div class="foot-bar">
+    <div class="wrap">
+      <span>© 2026 Syndra · syndradata.com</span>
+      <span><span data-l="en">Not investment advice. No alpha claimed.</span><span data-l="es">No es asesoramiento de inversión. No se reclama alfa.</span></span>
+    </div>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>

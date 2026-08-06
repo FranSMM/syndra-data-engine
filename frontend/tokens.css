@@ -1,0 +1,234 @@
+/* ============================================================================
+   SYNDRA — tokens.css
+   THE canonical palette. Every colour value in the codebase lives here.
+   No hex literal may appear in index.html, styles.css or main.js.
+   Values are fixed by the design brief §5b — do not substitute them.
+   ============================================================================ */
+
+:root{
+  /* ---- Brand neutrals (canonical) ---------------------------------------- */
+  --cream:#f7eddf;        /* light page surface                                */
+  --sand:#edd6b6;         /* SURFACES, BORDERS, FILLS ONLY — never text       */
+  --sand-strong:#dfc19a;  /* stronger border step of --sand                   */
+  --ink:#383838;          /* primary text on cream        10.13:1 ✓           */
+  --ink-muted:#515151;    /* secondary text on cream       6.85:1 ✓           */
+  --ink-faint:#6f6a63;    /* tertiary text on cream        4.63:1 ✓ AA        */
+  --near-black:#1e1e1e;   /* dark page surface — cream on it 14.40:1 ✓        */
+  --white:#ffffff;        /* cards on cream, text on accent                   */
+
+  /* ---- Emphasis: gold fills + ink. -------------------------------------
+     Presence comes from two devices used together: high-contrast INK-filled
+     blocks (a near-black button on cream is striking and reads premium rather
+     than loud), and GOLD fills — the brand's camel pushed up in chroma — for
+     the warm accents: chips, highlighted words, node marks, tinted panels.
+
+     The gold is a step of the family the palette already had, not a new hue
+     imported from outside it. Why nothing further afield was used:
+
+       amber/orange — a warm colour dark enough to be text on cream lands in
+         the same corner as --sentiment-negative (#c4362f): ΔE 3.7 under
+         deuteranopia, 11.0 under normal vision, both below the floor. A sweep
+         of the entire warm-dark region returned nothing clearing both gates.
+         A bright amber works as a fill but reads loud, not professional.
+       steel blue — measures 5.29:1 on cream and looks suitably metallic, but
+         sits ΔE 13.5 from --sentiment-positive under normal vision, below the
+         15 floor. Two blues on one page get confused.
+       violet / teal — no semantic collision, but neither belongs beside a
+         warm cream; the teal in particular sat at hue 180° with chroma 0.084,
+         a washed-out cyan that read as generic.
+
+     The cream page is warm and light, so any warm accent is low-contrast by
+     construction and any cool one competes with the data colours. Rather than
+     force a foreign hue that fails a gate, the gold below is the brand's own
+     warm family taken to the highest chroma that still works as a fill. */
+  /* Chroma 0.140 against the 0.073 of the flat sand — that near-doubling is
+     what makes it register as a colour instead of reading as "beige". Still a
+     FILL: 1.81:1 against the cream, so ink goes on top of it, never the
+     reverse. Ink on it 5.59:1 ✓.
+     Separation from the data colours verified: CVD ΔE 10.7, normal 17.9. */
+  --gold:#deaa64;         /* button and chip fill. Ink on it 5.61:1 ✓.
+                             Lightness held constant while chroma came down in
+                             two steps — 0.140 → 0.125 → 0.107 — moving it
+                             toward beige without dimming it. Compare the
+                             OKLCH L: 0.771 originally, 0.772 now.           */
+  --gold-hi:#ecc188;      /* lighter step — the top of the metallic sheen     */
+  --gold-deep:#c99a40;    /* sheen base — ink still clears 4.5 on it (4.57)   */
+  /* Text-capable step. The bright gold above is a fill and cannot be read as
+     text on a light surface; this one carries coloured WORDS — JSON keys,
+     links, the highlighted terms in the copy.
+     5.48:1 on white ✓ · 4.73:1 on cream ✓ · ΔE 26 from --sentiment-positive,
+     the colour it sits beside inside the code block.                        */
+     Hue 67° rather than the 89° first tried: the higher hue read olive —
+     "mustard" — while this sits closer to copper. Chroma 0.095 pulls it part
+     of the way toward brown/beige from the 0.106 gold, without going all the
+     way to the 0.071 that reads as plain brown.
+
+     4.53:1 is a hair above the 4.5 AA floor. THERE IS NO HEADROOM LEFT: any
+     further lightening drops it below AA for body text. If it still needs to
+     be lighter, the surface underneath has to get darker instead.           */
+  --gold-text:#92622a;
+  --gold-text-hi:#7a5220;  /* hover                                          */
+  --gold-tint:#faeed6;    /* tinted surface, one step off the page            */
+  --gold-tint-border:#eeddb4;
+  --gold-shade:#3a2f18;   /* dark-mode tinted surface                         */
+  --gold-shade-border:#57472a;
+
+  --tint:#f2e6d5;         /* neutral emphasis surface — a step of the cream   */
+  --tint-border:#e2d3bb;
+  --shade:#262523;        /* neutral dark emphasis surface                    */
+  --shade-border:#3a3835;
+
+  /* ---- Sentiment triad: green / grey / red. DATA ONLY. -------------------
+     The finance convention, chosen deliberately over the blue↔red diverging
+     scale that preceded it. Red/green is the pairing this audience expects,
+     and the cost is understood: it is the classic colour-vision failure.
+
+     THE GREEN IS LIGHT ON PURPOSE — that is the mitigation, not a style
+     choice. Colour-vision-deficient viewers lose the red/green channel but
+     keep LIGHTNESS, so the two poles are separated by lightness instead of
+     hue: the green sits at OKLCH L 0.702 against the red's 0.548.
+
+     That separation is what makes it survivable, and it is sensitive. Darker,
+     more "serious" greens collapse against the red under deuteranopia —
+     measured: #289447 → ΔE 3.9, #2b9a4b → 5.3, #3aad5d → 7.2. All below the
+     ≥8 target, the first two below the ≥6 floor entirely. This step reaches
+     9.2 only because it is light. Do not darken it.
+
+     The trade it buys: 2.16:1 against the cream, under the 3:1 mark. The
+     relief is mandatory and already in place — every sentiment value on the
+     page is rendered with its text label beside it, never colour alone. If a
+     future component shows this colour without a label, that component is
+     broken, not the token.
+
+     Validated all pairs on #f7eddf: CVD ΔE 9.2 (deuteranopia),
+     normal-vision ΔE 16.0. */
+  --sentiment-positive:#4cb872;
+  --sentiment-neutral:#8a8781;
+  --sentiment-negative:#c4362f;
+
+  /* Re-stepped for the dark surface, not reused from light.
+     Validated on #262523, all pairs: CVD ΔE 9.3 (deuteranopia),
+     normal-vision ΔE 16.8, all three ≥3:1. Clears the ΔE ≥ 8 target
+     and the ≥ 15 normal-vision floor.
+
+     DO NOT eyeball replacements for these three. A previous set
+     (#6aa9ee / #9d9a94 / #e4736b) looked reasonable and measured
+     normal-vision ΔE 13.4 — below the floor, meaning neutral and
+     positive were hard to tell apart even with full colour vision —
+     with CVD ΔE 6.3 and all three outside the dark lightness band.
+     If you change any of them, re-run the validator first.
+
+     The dark green is lighter again than the light-mode one, for the same
+     reason: reusing #4cb872 here drops it to ΔE 5.5 against the dark red,
+     inside the failure band. #5cc98a restores the separation to 9.3. */
+  --sentiment-positive-dark:#5cc98a;
+  --sentiment-neutral-dark:#928f87;
+  --sentiment-negative-dark:#e8604a;
+
+  /* ---- Dark-mode neutral steps (a selected palette, not an inversion) ---- */
+  --near-black-2:#232322;
+  --dark-surface:#262523;
+  --dark-surface-2:#2b2a27;
+  --dark-border:#3a3835;
+  --dark-border-strong:#4a4844;
+  --cream-muted:#d5cabb;
+  --cream-faint:#a49b8e;
+
+  /* ======================================================================
+     ROLE TOKENS — everything outside this file references only these.
+     Light (cream) is the primary scheme.
+     ====================================================================== */
+  --bg:var(--cream);
+  --bg-2:#f2e6d5;
+  --surface:var(--white);
+  --surface-2:#fbf7f1;
+  --border:var(--sand);
+  --border-strong:var(--sand-strong);
+  --fg:var(--ink);
+  --fg-muted:var(--ink-muted);
+  --fg-faint:var(--ink-faint);
+  /* --accent  = text, lines, focus rings.
+     --accent-fill = solid high-contrast blocks (primary button, active states).
+     --warm-fill   = gold blocks: chips, highlights, node marks, tinted panels.   */
+  --accent:var(--ink);              /* 10.13:1 on cream ✓                     */
+  --accent-hover:var(--near-black);
+  --accent-fill:var(--ink);         /* cream on ink, 10.13:1 ✓                */
+  --accent-fill-hover:var(--near-black);
+  --on-accent:var(--cream);
+  --warm-fill:var(--gold);          /* ink on gold, 5.59:1 ✓                  */
+  --warm-text:var(--gold-text);     /* coloured WORDS — 4.73:1 on cream ✓     */
+  --warm-text-hover:var(--gold-text-hi);
+  --warm-fill-hover:var(--gold-hi);
+  --on-warm:var(--ink);
+  --soft:var(--gold-tint);
+  --soft-border:var(--gold-tint-border);
+  --soft-fg:var(--ink);
+  --pos:var(--sentiment-positive);
+  --neu:var(--sentiment-neutral);
+  --neg:var(--sentiment-negative);
+  --node:var(--ink);
+  --edge:var(--sand-strong);
+  --shadow:0 18px 44px -30px rgba(56,56,56,.42);
+  color-scheme:light;
+}
+
+/* Dark: selected steps. Cream becomes the ink, so the brand survives the switch. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:var(--near-black);
+    --bg-2:var(--near-black-2);
+    --surface:var(--dark-surface);
+    --surface-2:var(--dark-surface-2);
+    --border:var(--dark-border);
+    --border-strong:var(--dark-border-strong);
+    --fg:var(--cream);
+    --fg-muted:var(--cream-muted);
+    --fg-faint:var(--cream-faint);
+    --accent:var(--cream);          /* 14.40:1 on near-black ✓                */
+    --accent-hover:var(--white);
+    --accent-fill:var(--cream);     /* near-black on cream, 14.40:1 ✓         */
+    --accent-fill-hover:var(--white);
+    --on-accent:var(--near-black);
+    --warm-fill:var(--gold);        /* near-black on gold, 7.94:1 ✓           */
+    --warm-text:var(--gold);        /* 7.94:1 on near-black ✓                 */
+    --warm-text-hover:var(--gold-hi);
+    --warm-fill-hover:var(--gold-hi);
+    --on-warm:var(--near-black);
+    --soft:var(--gold-shade);
+    --soft-border:var(--gold-shade-border);
+    --soft-fg:var(--sand);
+    --node:var(--gold);
+    --pos:var(--sentiment-positive-dark);
+    --neu:var(--sentiment-neutral-dark);
+    --neg:var(--sentiment-negative-dark);
+    --edge:var(--dark-border-strong);
+    --shadow:0 24px 60px -34px #000;
+    color-scheme:dark;
+  }
+}
+
+/* Explicit override scopes, for a future manual switch. */
+[data-theme="dark"]{
+  --bg:var(--near-black);--bg-2:var(--near-black-2);--surface:var(--dark-surface);--surface-2:var(--dark-surface-2);
+  --border:var(--dark-border);--border-strong:var(--dark-border-strong);
+  --fg:var(--cream);--fg-muted:var(--cream-muted);--fg-faint:var(--cream-faint);
+  --accent:var(--cream);--accent-hover:var(--white);--on-accent:var(--near-black);
+  --accent-fill:var(--cream);--accent-fill-hover:var(--white);--node:var(--gold);
+  --warm-fill:var(--gold);--warm-fill-hover:var(--gold-hi);--on-warm:var(--near-black);--warm-text:var(--gold);--warm-text-hover:var(--gold-hi);
+  --soft:var(--gold-shade);--soft-border:var(--gold-shade-border);--soft-fg:var(--sand);
+  --pos:var(--sentiment-positive-dark);--neu:var(--sentiment-neutral-dark);--neg:var(--sentiment-negative-dark);
+  --edge:var(--dark-border-strong);--shadow:0 24px 60px -34px #000;
+  color-scheme:dark;
+}
+[data-theme="light"]{
+  --bg:var(--cream);--bg-2:#f2e6d5;--surface:var(--white);--surface-2:#fbf7f1;
+  --border:var(--sand);--border-strong:var(--sand-strong);
+  --fg:var(--ink);--fg-muted:var(--ink-muted);--fg-faint:var(--ink-faint);
+  --accent:var(--ink);--accent-hover:var(--near-black);--on-accent:var(--cream);
+  --accent-fill:var(--ink);--accent-fill-hover:var(--near-black);--node:var(--ink);
+  --warm-fill:var(--gold);--warm-fill-hover:var(--gold-hi);--on-warm:var(--ink);--warm-text:var(--gold-text);--warm-text-hover:var(--gold-text-hi);
+  --soft:var(--gold-tint);--soft-border:var(--gold-tint-border);--soft-fg:var(--ink);
+  --pos:var(--sentiment-positive);--neu:var(--sentiment-neutral);--neg:var(--sentiment-negative);
+  --edge:var(--sand-strong);--shadow:0 18px 44px -30px rgba(56,56,56,.42);
+  color-scheme:light;
+}
