@@ -29,6 +29,24 @@
   --maxw:1160px;
 }
 
+/* ---------- Utilities ----------
+   These exist so the markup carries no inline style attributes. That is not
+   tidiness for its own sake: the Content-Security-Policy served with the page
+   uses `style-src 'self'`, which blocks inline styles outright. Keeping them
+   here is what lets the policy stay strict instead of needing 'unsafe-inline',
+   which would defeat most of its purpose. Do not reintroduce style="…". */
+.mw-20{max-width:20ch}
+.mw-24{max-width:24ch}
+.mw-26{max-width:26ch}
+.mw-48{max-width:48ch}
+.mw-50{max-width:50ch}
+.mw-52{max-width:52ch}
+.mt-28{margin-top:28px}
+.mt-44{margin-top:44px}
+.gap-24{gap:24px}
+.bare{border:0;padding:0}
+.no-bb{border-bottom:0}
+
 /* ---------- Base ---------- */
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}

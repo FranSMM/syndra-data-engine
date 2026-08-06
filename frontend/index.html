@@ -124,7 +124,7 @@
   <span class="tok-k">"time_window"</span><span class="tok-p">:</span> <span class="tok-s">"24h"</span>
 <span class="tok-p">}</span></code></pre>
       <div class="card-foot">
-        <span class="chip" style="border:0;padding:0"><span class="sw sw-pos"></span>positive</span>
+        <span class="chip bare" ><span class="sw sw-pos"></span>positive</span>
         <span>P(pos) − P(neg)</span>
       </div>
     </div>
@@ -163,7 +163,7 @@
       <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
       <p class="eyebrow">01 / <span data-l="en">The problem</span><span data-l="es">El problema</span></p>
     </div>
-    <h2 class="h2" style="max-width:20ch">
+    <h2 class="h2 mw-20" >
       <span data-l="en">Financial data teams have three bad options.</span>
       <span data-l="es">Los equipos de datos financieros tienen tres malas opciones.</span>
     </h2>
@@ -212,7 +212,7 @@
       <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
       <p class="eyebrow">02 / <span data-l="en">How it works</span><span data-l="es">Cómo funciona</span></p>
     </div>
-    <h2 class="h2" style="max-width:26ch">
+    <h2 class="h2 mw-26" >
       <span data-l="en">A medallion pipeline: Bronze, Silver, Gold.</span>
       <span data-l="es">Un pipeline medallion: Bronze, Silver, Gold.</span>
     </h2>
@@ -274,12 +274,12 @@
       <svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><path class="edge" d="M3 7 12 3.5 21 6.5 31 2.5" stroke-width="1"/><circle class="node" cx="3" cy="7" r="1.7"/><circle class="node" cx="12" cy="3.5" r="1.7"/><circle class="node" cx="21" cy="6.5" r="1.7"/><circle class="node" cx="31" cy="2.5" r="1.7"/></svg>
       <p class="eyebrow">03 / <span data-l="en">The payload</span><span data-l="es">El payload</span></p>
     </div>
-    <h2 class="h2" style="max-width:24ch">
+    <h2 class="h2 mw-24" >
       <span data-l="en">Read the response before you read the pitch.</span>
       <span data-l="es">Lee la respuesta antes de leer el discurso.</span>
     </h2>
 
-    <div class="grid2" style="margin-top:44px;gap:24px">
+    <div class="grid2 mt-44 gap-24" >
       <div class="card">
         <div class="card-bar"><span class="verb">GET</span><span class="endpoint">/api/v1/sentiment/{ticker}</span></div>
         <pre class="wrap-cmd"><code><span class="tok-p">$</span> <span class="tok-k">curl</span> -s https://syndra.internal/api/v1/sentiment/AAPL?window=24h \
@@ -354,12 +354,12 @@
         <span data-l="en">Your data never leaves your perimeter.</span>
         <span data-l="es">Tus datos nunca salen de tu perímetro.</span>
       </h2>
-      <p class="lede" style="max-width:50ch">
+      <p class="lede mw-50" >
         <span data-l="en">Syndra ships as Docker Compose and runs in your VPC or on-prem. Ingestion, inference and storage all execute on your hardware. There is no Syndra-operated cloud to trust, no vendor egress to audit, and no third-party model API in the path.</span>
         <span data-l="es">Syndra se distribuye como Docker Compose y se ejecuta en tu VPC o en on-prem. La ingesta, la inferencia y el almacenamiento corren en tu hardware. No hay una nube operada por Syndra en la que confiar, ni egreso de proveedor que auditar, ni API de modelos de terceros en la ruta.</span>
       </p>
-      <div class="card" style="margin-top:28px">
-        <pre class="wrap-cmd" style="border-bottom:0"><code><span class="tok-p">$</span> git clone && cp .env.example .env
+      <div class="card mt-28" >
+        <pre class="wrap-cmd no-bb" ><code><span class="tok-p">$</span> git clone && cp .env.example .env
 <span class="tok-p">$</span> <span class="tok-k">make</span> up   <span class="tok-c"># postgres · qdrant · redis · api · prefect</span></code></pre>
       </div>
     </div>
@@ -389,11 +389,11 @@
         <p class="eyebrow">05 / BYOS</p>
       </div>
       <h2 class="h2"><span data-l="en">Bring your own source.</span><span data-l="es">Trae tu propia fuente.</span></h2>
-      <p class="lede" style="max-width:50ch">
+      <p class="lede mw-50" >
         <span data-l="en">You declare the feeds in <code class="mono">feeds.json</code> and the engine ingests them. Syndra sells the pipeline, not somebody else's scraped archive, so licensing stays between you and the publishers you already have rights to.</span>
         <span data-l="es">Tú declaras los feeds en <code class="mono">feeds.json</code> y el motor los ingiere. Syndra vende el pipeline, no el archivo scrapeado de otro, así que la licencia queda entre ti y los publishers sobre los que ya tienes derechos.</span>
       </p>
-      <p class="hero-note" style="max-width:52ch">
+      <p class="hero-note mw-52" >
         <span data-l="en">An architectural capability, configured per deployment. You decide which feeds the engine reads.</span>
         <span data-l="es">Una capacidad arquitectónica, configurada por despliegue. Tú decides qué feeds lee el motor.</span>
       </p>
@@ -454,7 +454,7 @@
         <p class="eyebrow">07 / <span data-l="en">Access</span><span data-l="es">Acceso</span></p>
       </div>
       <h2 class="h2"><span data-l="en">Request access.</span><span data-l="es">Solicita acceso.</span></h2>
-      <p class="lede" style="max-width:48ch">
+      <p class="lede mw-48" >
         <span data-l="en">Onboarding is manual and deliberate: a short call about your feeds and infrastructure, then a deployment. No self-serve billing, no tiers to compare.</span>
         <span data-l="es">El onboarding es manual y deliberado: una llamada corta sobre tus feeds e infraestructura y después un despliegue. Sin facturación self-serve ni planes que comparar.</span>
       </p>
