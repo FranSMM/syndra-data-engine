@@ -266,6 +266,39 @@ footer{background:var(--bg-2)}
   .sec > .wrap,.hero > .wrap{padding-left:18px;padding-right:18px}
   .hero-cta .btn{width:100%;justify-content:center}
   .foot-nav{gap:32px}
+
+  /* The header runs out of room here. Measured at 360px, the four controls
+     plus their gaps come to roughly 436px — the row overflows and takes the
+     whole page into horizontal scroll with it.
+     The "Request access" button goes first: the same call to action appears
+     again in the hero and once more in the access section, so nothing is lost,
+     and it is the widest of the four. */
+  .hdr-right .btn-sm{display:none}
+  .brand{font-size:13.5px;letter-spacing:.1em;gap:8px}
+  .hdr-right{gap:10px}
+
+  /* Two items with space-between and no wrap: on a narrow card the right-hand
+     one gets squeezed to a couple of characters per line. */
+  .card-foot{flex-wrap:wrap;gap:10px}
+  .card-foot > *{min-width:0}
+
+  /* Give the scrolling figures a little more of the screen. */
+  .diagram{padding:24px 16px}
+  .diagram svg{min-width:520px}
+
+  .badge{font-size:11px}
+  .lede,.hero-sub{font-size:16px}
+}
+
+/* Small phones. Nothing here is a new decision — it is the same layout with
+   the last of the slack taken out. */
+@media (max-width:380px){
+  h1{font-size:29px}
+  .h2{font-size:26px}
+  .sec > .wrap{padding-top:56px;padding-bottom:56px}
+  .hdr .wrap{gap:10px;padding:0 14px}
+  .sec > .wrap,.hero > .wrap{padding-left:14px;padding-right:14px}
+  .langsw button{padding:6px 8px}
 }
 @media (min-width:1600px){:root{--maxw:1320px}}
 @media print{.hdr,.langsw,.mobnav{display:none}}
