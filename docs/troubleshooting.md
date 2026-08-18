@@ -24,3 +24,4 @@
 | [INC-018](./troubleshooting/018_data_loss_scrapy_overwrite_flag.md) | Data Loss by Overwrite in Multi-Source Scrapy Ingestion |
 | [INC-019](./troubleshooting/019_orphaned_rate_limit_key_without_ttl.md) | Orphaned Rate Limit Key Without TTL (Permanent Client Lockout) |
 | [INC-020](./troubleshooting/020_semantic_search_500_on_uninitialized_qdrant.md) | Semantic Search HTTP 500 on a Freshly Provisioned Qdrant |
+| [INC-021](./troubleshooting/021_ticker_false_positives_from_short_symbols.md) | Ticker False Positives from Short Symbols and Untrimmed Aliases |

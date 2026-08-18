@@ -22,6 +22,22 @@ class TickerExtractor:
             cls._instance._initialize()
         return cls._instance
 
+    # A bare symbol this short is not evidence of a company being mentioned.
+    # "A" is Agilent, "S" is SentinelOne, "P" is Everpure, "AI" is C3.ai — and
+    # in ordinary financial prose those characters come from "A colleague",
+    # "U.S.", "S&P" and "AI chips". Measured over the corpus, 1-2 character
+    # symbols produced 29.4% of all ticker attachments, and 7,451 articles
+    # carried nothing else. The company-name aliases are unambiguous and stay
+    # registered, so Agilent is still found when it is actually named.
+    MIN_BARE_SYMBOL_LEN = 3
+
+    # Aliases that are ordinary vocabulary rather than names. Short list by
+    # design — these are the only three in the current dictionary, and each was
+    # found in the data, not guessed: BLSH ships the alias "Bullish" and matched
+    # every "analysts turn bullish" headline; DOW ships "Dow" and matched the
+    # index rather than the chemical company.
+    STOP_ALIASES = {"bullish", "bearish", "dow"}
+
     def _initialize(self):
         # Case-sensitive to avoid matching common words like "apple" or "meta"
         self.kp = KeywordProcessor(case_sensitive=True)
@@ -33,15 +49,45 @@ class TickerExtractor:
             ticker_dict = json.load(f)
 
         # FlashText expects: {'StandardName': ['alias1', 'alias2']}
-        # We ensure the ticker itself is always treated as an alias.
+        cleaned: dict[str, list[str]] = {}
+        dropped_symbols = dropped_aliases = added_trimmed = 0
         for ticker, aliases in ticker_dict.items():
-            if ticker not in aliases:
-                aliases.append(ticker)
+            keep = [a for a in aliases
+                    if str(a).strip().lower() not in self.STOP_ALIASES]
+            dropped_aliases += len(aliases) - len(keep)
 
-        self.kp.add_keywords_from_dict(ticker_dict)
+            # The upstream SEC file derives aliases by truncating "X, Inc.",
+            # which leaves a trailing comma: "Agilent Technologies,". FlashText
+            # matches keywords exactly, so that alias never fires on the far
+            # more common "Agilent Technologies beat expectations". 2,997
+            # tickers had *every* alias ending in punctuation, and 69 of those
+            # are 1-2 character symbols — which, with the bare symbol withheld
+            # above, would make Altria, Zoom, DuPont and Agilent unfindable
+            # altogether. Registering the trimmed form as well fixes that and
+            # adds ~8,300 usable aliases across the dictionary.
+            for alias in list(keep):
+                trimmed = str(alias).rstrip(", \t")
+                if trimmed and trimmed != alias and trimmed not in keep:
+                    keep.append(trimmed)
+                    added_trimmed += 1
+
+            # The ticker itself is a keyword only when it is long enough to be
+            # unambiguous on its own.
+            if len(ticker) >= self.MIN_BARE_SYMBOL_LEN:
+                if ticker not in keep:
+                    keep.append(ticker)
+            else:
+                dropped_symbols += 1
+
+            if keep:
+                cleaned[ticker] = keep
+
+        self.kp.add_keywords_from_dict(cleaned)
         logger.info(
-            f"TickerExtractor loaded: {len(ticker_dict)} tickers with "
-            f"{sum(len(v) for v in ticker_dict.values())} aliases."
+            f"TickerExtractor loaded: {len(cleaned)} tickers with "
+            f"{sum(len(v) for v in cleaned.values())} aliases "
+            f"({dropped_symbols} bare short symbols and {dropped_aliases} "
+            f"common-word aliases withheld, {added_trimmed} trimmed forms added)."
         )
 
     def extract(self, text: str) -> list[str]:
