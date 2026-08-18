@@ -56,5 +56,18 @@ Verified end-to-end with the real spider against production: Yahoo 49, BBC 53, S
 
 - **Positive:** BYOS becomes demonstrable. Any standards-compliant RSS feed is now ingestible, which is what the architecture always claimed.
 - **Positive:** The `source_type` column carries a real distinction for the first time.
-- **Negative:** Multi-source ingestion will expose duplicate coverage of the same story across outlets. The late deduplication (ADR 033) was designed for reprints within one source; its behaviour across sources is untested and should be watched.
+- **Measured, not assumed — cross-source duplication does not occur with these sources.** This ADR originally warned that multi-source ingestion would expose the same story reported by several outlets, and that ADR 033's deduplication was built for same-source reprints. That was a reasonable worry and it is wrong here. Over a live snapshot of 128 articles:
+
+  | | |
+  |---|---|
+  | cross-source pairs compared | 5,225 |
+  | pairs scoring ≥ 0.85 (would be deduplicated) | 0 |
+  | pairs scoring ≥ 0.55 at all | 0 |
+  | pairs sharing a company within 24h | 1 |
+
+  The single shared-company pair was a **false positive from ticker extraction**, not a duplicate: two unrelated articles both matched ticker `A` because one contained "**A** colleague" and the other "**A**I".
+
+  The reason is the source selection itself. US market aggregation, UK business reporting and US regulatory enforcement barely overlap in subject matter. No change was made, because there was nothing to fix.
+
+  **The condition under which this returns:** adding a second source of the same kind — CNBC or MarketWatch alongside Yahoo, both US market wires — would put genuinely overlapping coverage into the corpus. Re-run the measurement before adding one, rather than assuming either outcome.
 - **Open:** Ticker extraction produces false positives on one- and two-letter symbols — `U.S.` yields `U` and `S`, `S&P` yields `S` and `P`, and `AI` matches every article about artificial intelligence. This predates the change and affects the existing corpus. Tracked separately; adding sources increases the volume flowing through it but is not its cause.
