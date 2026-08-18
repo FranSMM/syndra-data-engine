@@ -4,5 +4,17 @@
     "url": "https://finance.yahoo.com/news/rssindex",
     "source_type": "rss_feed",
     "enabled": true
+  },
+  {
+    "name": "bbc_business",
+    "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "sec_press_releases",
+    "url": "https://www.sec.gov/news/pressreleases.rss",
+    "source_type": "regulatory",
+    "enabled": true
   }
 ]
