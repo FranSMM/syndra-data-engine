@@ -7,6 +7,7 @@ Performance: O(N) where N = text length, regardless of dictionary size.
 import json
 import logging
 import os
+import re
 
 from flashtext import KeywordProcessor
 
@@ -31,12 +32,25 @@ class TickerExtractor:
     # registered, so Agilent is still found when it is actually named.
     MIN_BARE_SYMBOL_LEN = 3
 
-    # Aliases that are ordinary vocabulary rather than names. Short list by
-    # design — these are the only three in the current dictionary, and each was
-    # found in the data, not guessed: BLSH ships the alias "Bullish" and matched
-    # every "analysts turn bullish" headline; DOW ships "Dow" and matched the
-    # index rather than the chemical company.
-    STOP_ALIASES = {"bullish", "bearish", "dow"}
+    # Aliases that name something other than the company. Each was found in the
+    # data, not guessed.
+    #   bullish/bearish — BLSH ships "Bullish" and matched every "analysts turn
+    #     bullish" headline.
+    #   dow, nasdaq     — the index, not Dow Inc. or Nasdaq Inc. Both are named
+    #     far more often as market barometers than as listed companies:
+    #     "Dow hits record, S&P 500, Nasdaq slip".
+    STOP_ALIASES = {"bullish", "bearish", "dow", "nasdaq"}
+
+    # Warrants and preferred classes should not absorb a mention of the company.
+    # "Morgan Stanley Maintains Overweight Rating on ..." was tagging MS-PL, a
+    # preferred series, rather than MS. Same for ACHR-WT, JOBY-WT and the -P*
+    # series. Ordinary share classes (BRK.B) are genuine securities and stay.
+    DERIVATIVE_SUFFIX = re.compile(r"-(WT|P[A-Z]|R|U)$")
+
+    @staticmethod
+    def _normalise(alias) -> str:
+        """Lowercased, with the trailing punctuation the source data carries."""
+        return str(alias).strip().rstrip(", \t").lower()
 
     def _initialize(self):
         # Case-sensitive to avoid matching common words like "apple" or "meta"
@@ -50,10 +64,19 @@ class TickerExtractor:
 
         # FlashText expects: {'StandardName': ['alias1', 'alias2']}
         cleaned: dict[str, list[str]] = {}
-        dropped_symbols = dropped_aliases = added_trimmed = 0
+        dropped_symbols = dropped_aliases = added_trimmed = dropped_derivatives = 0
         for ticker, aliases in ticker_dict.items():
+            # Warrants and preferred series never carry the company's news.
+            if self.DERIVATIVE_SUFFIX.search(ticker):
+                dropped_derivatives += 1
+                continue
+
+            # Compare against the TRIMMED form. The stored alias is "Nasdaq,"
+            # with a trailing comma, so a naive lower() check never matched the
+            # stop word and the trimming below then registered a clean "Nasdaq"
+            # that fired on every index reference.
             keep = [a for a in aliases
-                    if str(a).strip().lower() not in self.STOP_ALIASES]
+                    if self._normalise(a) not in self.STOP_ALIASES]
             dropped_aliases += len(aliases) - len(keep)
 
             # The upstream SEC file derives aliases by truncating "X, Inc.",
@@ -87,7 +110,8 @@ class TickerExtractor:
             f"TickerExtractor loaded: {len(cleaned)} tickers with "
             f"{sum(len(v) for v in cleaned.values())} aliases "
             f"({dropped_symbols} bare short symbols and {dropped_aliases} "
-            f"common-word aliases withheld, {added_trimmed} trimmed forms added)."
+            f"common-word aliases withheld, {added_trimmed} trimmed forms added, "
+            f"{dropped_derivatives} warrant/preferred tickers excluded)."
         )
 
     def extract(self, text: str) -> list[str]:

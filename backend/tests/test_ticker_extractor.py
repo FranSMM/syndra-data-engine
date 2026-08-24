@@ -29,6 +29,11 @@ def tx():
         ("SK Hynix set for marquee US debut in test for AI appetite", {"AI"}),
         ("Is Wall Street Bullish or Bearish on W.W. Grainger Stock?", {"BLSH"}),
         ("The Dow hits a record as most of Wall Street rises", {"DOW"}),
+        # NDAQ was a regression introduced by the alias trimming: the stored
+        # alias "Nasdaq," never matched prose, and the trimmed "Nasdaq" then
+        # matched every index reference. 673 articles before it was caught.
+        ("Stock market today: Dow hits record, S&P 500, Nasdaq slip", {"NDAQ", "DOW"}),
+        ("The Nasdaq-100 Squeeze is On. Technical Signals to Watch.", {"NDAQ"}),
         ("Best CD rates today (best account provides 4.05% APY)", {"CD"}),
     ],
 )
@@ -79,3 +84,15 @@ def test_the_known_cost_is_the_bare_short_symbol_in_a_ticker_list(tx):
 
 def test_empty_input(tx):
     assert tx.extract("") == []
+
+
+def test_warrants_and_preferred_series_do_not_absorb_company_news(tx):
+    """
+    An article about Morgan Stanley was tagging MS-PL, a preferred series,
+    rather than the common stock. Warrants (-WT) and preferred classes (-P*)
+    are derivative instruments that never carry the company's news; ordinary
+    share classes such as BRK.B are genuine securities and stay registered.
+    """
+    found = set(tx.extract("Morgan Stanley Maintains Overweight Rating on Aon plc"))
+    assert "MS-PL" not in found
+    assert not any(t.endswith("-WT") for t in found)
