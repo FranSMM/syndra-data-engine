@@ -34,9 +34,14 @@ docker push ghcr.io/fransmm/syndra-demo:latest
 # Caddy is the shared ingress: a malformed Caddyfile takes the API down along
 # with the demo. Validating before the file ever reaches the VPS turns that
 # into a failed deploy instead of an outage.
+#
+# The file is piped in on stdin rather than bind-mounted. A -v mount of a
+# single file fails outright when the repo lives on a UNC path (\\wsl.localhost
+# from a Windows host), which is exactly how this script gets run here.
 echo "-- [3/5] Validating the Caddyfile..."
-docker run --rm -v "$(pwd)/infra/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
-    caddy validate --config /etc/caddy/Caddyfile
+docker run --rm -i caddy:2-alpine \
+    sh -c 'cat > /tmp/Caddyfile && caddy validate --adapter caddyfile --config /tmp/Caddyfile' \
+    < ./infra/Caddyfile
 
 echo "-- [4/5] Syncing infrastructure to VPS..."
 scp ./infra/docker-compose.prod.yml $VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml

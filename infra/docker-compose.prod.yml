@@ -79,13 +79,26 @@ services:
     deploy:
       resources:
         limits:
-          # Raised from 512M after the container was measured hitting that
-          # ceiling: memory.peak 538MB, memory.events reporting max 12833 and
-          # oom_kill 1. Each uvicorn worker lazily loads its own copy of the
-          # MiniLM weights on the first /search/semantic call, and two of those
-          # do not fit in 512M. The box is dedicated to this project and had
-          # 2.4G available, so the headroom was free.
-          memory: 768M
+          # Sized from measurement, in two steps. At 512M the cgroup had hit its
+          # ceiling 12833 times with one recorded oom_kill; the 314MB the
+          # container appeared to use was not its appetite but its footprint
+          # compressed by constant reclaim. Raising it to 768M revealed the real
+          # figure: 789MB of anonymous memory, 395MB + 394MB across the two
+          # uvicorn workers, each of which imports torch and
+          # sentence-transformers at module load — roughly 390MB before any
+          # model weights exist. /search/semantic then adds a MiniLM copy per
+          # worker on first use.
+          #
+          # 1.25G covers both workers with their models resident and leaves
+          # headroom. The box is dedicated to this project and was using 1.5G of
+          # 3.8G, so the room was there.
+          #
+          # The cheaper fix is one worker instead of two: the API is async, its
+          # only CPU-bound work (embedding) already runs in a threadpool via
+          # asyncio.to_thread, and two workers on a 2-vCPU box that also runs
+          # FinBERT inference contend for CPU while duplicating the same weights
+          # in RAM. Left at two deliberately, not by omission.
+          memory: 1.25G
 
   prefect_server:
     image: prefecthq/prefect:3-latest
