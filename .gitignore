@@ -19,6 +19,10 @@ build/
 *_output.json
 backend/app/scraper/*.json
 
+# The demo's Streamlit secrets (API base + demo key). Only the .example is
+# tracked; the real file is bind-mounted on the VPS and never leaves it.
+demo/.streamlit/secrets.toml
+
 .python-version
 .pytest_cache/
 .mypy_cache/

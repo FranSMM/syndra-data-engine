@@ -1,0 +1,25 @@
+# Syndra brand theme for the Streamlit demo.
+#
+# Without this file Streamlit ships its stock dark theme — near-black #0E1117
+# with the default coral #FF4B4B primary — which shares nothing with the
+# landing page. The values below are the same tokens as
+# syndra-data-engine/frontend/tokens.css, dark-mode steps, so a visitor
+# arriving from the landing lands somewhere that looks like the same product.
+#
+# Keep in sync with tokens.css. That file is the source of truth for colour.
+
+[theme]
+base = "dark"
+
+primaryColor = "#deaa64"             # gold  — buttons, sliders, focus
+backgroundColor = "#1e1e1e"          # near-black — the page surface
+secondaryBackgroundColor = "#262523" # dark-surface — cards, sidebar, inputs
+textColor = "#f7eddf"                # cream becomes the ink, as on the landing
+
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

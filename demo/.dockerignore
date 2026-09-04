@@ -1,0 +1,13 @@
+# Secrets must never reach an image layer. secrets.toml is git-ignored, but a
+# local copy left behind by a developer would still be picked up by COPY.
+.streamlit/secrets.toml
+
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+
+# Not needed at runtime — the Dockerfile pins the interpreter and the build
+# instructions are not part of what runs.
+Dockerfile
+.dockerignore

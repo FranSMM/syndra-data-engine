@@ -23,17 +23,26 @@ if [ -n "$(git log origin/main..HEAD 2>/dev/null)" ]; then
     exit 1
 fi
 
-echo "-- [1/4] Building the new Docker image..."
+echo "-- [1/5] Building the Docker images..."
 docker build -t ghcr.io/fransmm/syndra-etl:latest ./backend
+docker build -t ghcr.io/fransmm/syndra-demo:latest ./demo
 
-echo "-- [2/4] Pushing the image to GitHub Container Registry..."
+echo "-- [2/5] Pushing the images to GitHub Container Registry..."
 docker push ghcr.io/fransmm/syndra-etl:latest
+docker push ghcr.io/fransmm/syndra-demo:latest
 
-echo "-- [3/4] Syncing infrastructure to VPS..."
+# Caddy is the shared ingress: a malformed Caddyfile takes the API down along
+# with the demo. Validating before the file ever reaches the VPS turns that
+# into a failed deploy instead of an outage.
+echo "-- [3/5] Validating the Caddyfile..."
+docker run --rm -v "$(pwd)/infra/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine \
+    caddy validate --config /etc/caddy/Caddyfile
+
+echo "-- [4/5] Syncing infrastructure to VPS..."
 scp ./infra/docker-compose.prod.yml $VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml
 scp ./infra/Caddyfile $VPS_USER@$VPS_IP:$DEPLOY_DIR/Caddyfile
 
-echo "-- [4/4] Restarting containers on VPS..."
+echo "-- [5/5] Restarting containers on VPS..."
 ssh $VPS_USER@$VPS_IP << EOF
     cd $DEPLOY_DIR
     docker compose pull

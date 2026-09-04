@@ -1,9 +1,23 @@
 name: syndra-data-engine
 
+# Docker's json-file driver keeps every line a container ever wrote, with no
+# limit by default. With an hourly pipeline and a per-request API log that is a
+# disk that fills itself in silence, and the failure surfaces months later as
+# Postgres unable to write. Capping at 3 files of 10MB bounds each container to
+# 30MB. Rotation discards history, which is the right trade here: container
+# logs are immediate diagnosis, while the history that matters lives in
+# Postgres, in docs/troubleshooting and in Prefect.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: syndra_postgres
+    logging: *default-logging
     ports:
       - "127.0.0.1:5432:5432"
     environment:
@@ -25,6 +39,7 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.17.0
     container_name: syndra_qdrant
+    logging: *default-logging
     ports:
       - "127.0.0.1:6333:6333"
     volumes:
@@ -36,6 +51,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: syndra_redis
+    logging: *default-logging
     ports:
       - "127.0.0.1:6379:6379"
     networks:
@@ -47,6 +63,7 @@ services:
   api:
     image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_api
+    logging: *default-logging
     # No host ports — Caddy is the only ingress. API is reachable
     # only via Docker's internal syndra_net network.
     env_file: .env
@@ -62,11 +79,18 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          # Raised from 512M after the container was measured hitting that
+          # ceiling: memory.peak 538MB, memory.events reporting max 12833 and
+          # oom_kill 1. Each uvicorn worker lazily loads its own copy of the
+          # MiniLM weights on the first /search/semantic call, and two of those
+          # do not fit in 512M. The box is dedicated to this project and had
+          # 2.4G available, so the headroom was free.
+          memory: 768M
 
   prefect_server:
     image: prefecthq/prefect:3-latest
     container_name: syndra_prefect_server
+    logging: *default-logging
     command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
     env_file: .env
     environment:
@@ -87,6 +111,7 @@ services:
   scheduler:
     image: ghcr.io/fransmm/syndra-etl:latest
     container_name: syndra_scheduler
+    logging: *default-logging
     env_file: .env
     environment:
       - PREFECT_API_URL=http://prefect_server:4200/api
@@ -106,9 +131,34 @@ services:
         limits:
           memory: 2.5G
 
+  demo:
+    image: ghcr.io/fransmm/syndra-demo:latest
+    container_name: syndra_demo
+    logging: *default-logging
+    # No host ports: Caddy is the only ingress, same as the API.
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    volumes:
+      # Read-only so the container can read the demo key but never rewrite its
+      # own configuration. The file is 0600 and owned by uid 1000 on the host,
+      # which is why the image runs as uid 1000 too.
+      - ./streamlit-secrets.toml:/app/.streamlit/secrets.toml:ro
+    deploy:
+      resources:
+        limits:
+          # This is the only unauthenticated, public entry point on the box.
+          # A hard cap means a runaway demo is killed by its own cgroup instead
+          # of taking the API down with it. Streamlit with pandas/plotly and no
+          # torch sits around 200M.
+          memory: 384M
+    # Deliberately NOT depending on api: the demo must still serve its page and
+    # explain itself if the API is down, rather than refusing to start.
+
   caddy:
     image: caddy:2-alpine
     container_name: syndra_caddy
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
