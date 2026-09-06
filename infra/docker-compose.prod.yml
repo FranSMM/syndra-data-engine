@@ -61,7 +61,12 @@ services:
       - syndra_redis_data:/data
 
   api:
-    image: ghcr.io/fransmm/syndra-etl:latest
+    # Pinned to the git SHA that built it, written into the VPS .env by
+    # deploy.sh. :latest is a mutable tag with no history behind it, so it can
+    # never be rolled back to; a SHA can. The :-latest default keeps compose
+    # resolving to something valid if the variable is ever missing, rather than
+    # failing on an empty image name.
+    image: ghcr.io/fransmm/syndra-etl:${ETL_TAG:-latest}
     container_name: syndra_api
     logging: *default-logging
     # No host ports — Caddy is the only ingress. API is reachable
@@ -122,7 +127,8 @@ services:
           memory: 512M
 
   scheduler:
-    image: ghcr.io/fransmm/syndra-etl:latest
+    # Same image and therefore the same tag as the API: they are one build.
+    image: ghcr.io/fransmm/syndra-etl:${ETL_TAG:-latest}
     container_name: syndra_scheduler
     logging: *default-logging
     env_file: .env
@@ -145,7 +151,7 @@ services:
           memory: 2.5G
 
   demo:
-    image: ghcr.io/fransmm/syndra-demo:latest
+    image: ghcr.io/fransmm/syndra-demo:${DEMO_TAG:-latest}
     container_name: syndra_demo
     logging: *default-logging
     # No host ports: Caddy is the only ingress, same as the API.
