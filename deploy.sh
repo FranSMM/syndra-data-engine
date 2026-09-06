@@ -77,10 +77,20 @@ if [ -n "$ROLLBACK_SPEC" ]; then
     esac
 
     # Confirm the tag exists in the registry before pointing production at it.
-    # Without this the deploy "succeeds" and the pull fails on the VPS, leaving
-    # the .env pinned to something that cannot be pulled.
+    # Without this the rollback "succeeds" and the pull fails on the VPS,
+    # leaving .env pinned to something that cannot be pulled.
+    #
+    # `docker manifest inspect` does exit non-zero on a missing tag, so `set -e`
+    # alone would stop here. The explicit test is kept for the message: a bare
+    # `manifest unknown` does not tell you that nothing was changed or where to
+    # look for valid tags. It also does not depend on that exit code staying
+    # stable across Docker versions, since the check is on the manifest itself.
     echo "-- Verifying $REGISTRY/syndra-$IMAGE:$TAG exists..."
-    docker manifest inspect "$REGISTRY/syndra-$IMAGE:$TAG" > /dev/null
+    if ! docker manifest inspect "$REGISTRY/syndra-$IMAGE:$TAG" 2>/dev/null | grep -q '"schemaVersion"'; then
+        echo "   Tag not found in the registry. Nothing changed."
+        echo "   Available tags: https://github.com/FranSMM?tab=packages"
+        exit 1
+    fi
 
     echo "-- Pinning $VAR=$TAG and restarting: $SERVICES"
     write_remote_tag "$VAR" "$TAG"
