@@ -28,5 +28,5 @@ COPY ./app /code/app
 # the VPS, so it must never boot with --reload: the reloader spawns a file
 # watcher, burns CPU/RAM and is explicitly unsupported for production serving.
 # Local development re-enables hot reload through the `command:` override in
-# docker-compose.yml, mirroring how docker-compose.prod.yml sets --workers 2.
+# docker-compose.yml, mirroring how docker-compose.prod.yml sets --workers 1.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

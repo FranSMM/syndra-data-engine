@@ -72,7 +72,17 @@ services:
     # No host ports — Caddy is the only ingress. API is reachable
     # only via Docker's internal syndra_net network.
     env_file: .env
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    # One worker, not two. prometheus_client keeps its registry in the memory of
+    # the process that owns it, so with two workers a scrape lands on whichever
+    # one Uvicorn happens to hand it: the counters would be split across two
+    # independent histories and every graph drawn from them would be a lie.
+    # prometheus_client's multiprocess mode exists to solve exactly this, but it
+    # wants a shared directory, cleanup when a worker dies, and it degrades
+    # gauge semantics — real complexity to keep a worker that was never earning
+    # its place. The API is async and its only CPU-bound work already runs in a
+    # threadpool via asyncio.to_thread, so concurrency comes from the event
+    # loop, not from workers.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
     networks:
       - syndra_net
     restart: unless-stopped
@@ -94,15 +104,16 @@ services:
           # model weights exist. /search/semantic then adds a MiniLM copy per
           # worker on first use.
           #
-          # 1.25G covers both workers with their models resident and leaves
-          # headroom. The box is dedicated to this project and was using 1.5G of
-          # 3.8G, so the room was there.
+          # Dropping to one worker (see the command above) halves that: the
+          # expected resident set is now ~390MB plus one MiniLM copy instead of
+          # two of each.
           #
-          # The cheaper fix is one worker instead of two: the API is async, its
-          # only CPU-bound work (embedding) already runs in a threadpool via
-          # asyncio.to_thread, and two workers on a 2-vCPU box that also runs
-          # FinBERT inference contend for CPU while duplicating the same weights
-          # in RAM. Left at two deliberately, not by omission.
+          # The cap stays at 1.25G anyway. A limit is a ceiling, not a
+          # reservation — lowering it frees nothing for the other containers,
+          # it only moves the point at which the OOM killer intervenes. The
+          # memory actually released by the second worker is real and available
+          # regardless. Re-measure with `docker stats` and memory.peak after a
+          # week of traffic before tightening this.
           memory: 1.25G
 
   prefect_server:
@@ -174,6 +185,45 @@ services:
     # Deliberately NOT depending on api: the demo must still serve its page and
     # explain itself if the API is down, rather than refusing to start.
 
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: syndra_prometheus
+    logging: *default-logging
+    # Bound to loopback, not to 0.0.0.0. Prometheus ships no authentication of
+    # its own and its UI would happily tell the internet every route, latency
+    # and business volume it has collected. Reached the same way as Prefect on
+    # 4200: `ssh -L 9090:localhost:9090 syndra`. Caddy never proxies it, so no
+    # new surface is exposed.
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - syndra_prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      # Two retention limits, and they are not redundant. Time is the one that
+      # serves the dissertation: 180 days from today covers the defence with
+      # room to spare. Size is the one that protects the box — the documented
+      # failure from the internship was a Prometheus with no size cap filling
+      # the disk. At ~100 series scraped every 15s the real footprint is
+      # ~150-200MB, so 2GB is a guardrail, not a constraint.
+      - "--storage.tsdb.retention.time=180d"
+      - "--storage.tsdb.retention.size=2GB"
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # Prometheus holds the last ~2h of every series in memory (the head
+          # block). With this few series that is small; the cap is here so a
+          # cardinality mistake kills the monitoring instead of the API.
+          memory: 384M
+    # Deliberately no depends_on: Prometheus must start and record `up == 0`
+    # when the API is down. Waiting for the API would blind it exactly when
+    # there is something to see.
+
   caddy:
     image: caddy:2-alpine
     container_name: syndra_caddy
@@ -199,5 +249,6 @@ volumes:
   syndra_pgdata:
   syndra_qdrant_data:
   syndra_redis_data:
+  syndra_prometheus_data:
   syndra_caddy_data:
   syndra_caddy_config:

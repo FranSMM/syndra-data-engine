@@ -171,14 +171,29 @@ fi
 # The file is piped in on stdin rather than bind-mounted. A -v mount of a single
 # file fails outright when the repo lives on a UNC path (\\wsl.localhost from a
 # Windows host), which is exactly how this script gets run here.
-echo "-- [3/5] Validating the Caddyfile..."
+echo "-- [3/5] Validating infrastructure configuration..."
 docker run --rm -i caddy:2-alpine \
     sh -c 'cat > /tmp/Caddyfile && caddy validate --adapter caddyfile --config /tmp/Caddyfile' \
     < ./infra/Caddyfile
 
+# Prometheus refuses to start on a malformed config and, unlike Caddy, it fails
+# alone and quietly: the API keeps serving while metrics collection is simply
+# gone, and the gap only becomes visible when the graph is needed. Checked with
+# promtool from the exact image production runs — read out of the compose file
+# rather than repeated here, so the two cannot drift apart.
+PROM_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' ./infra/docker-compose.prod.yml | head -1)
+if [ -z "$PROM_IMAGE" ]; then
+    echo "   Could not find the prom/prometheus image in infra/docker-compose.prod.yml"
+    exit 1
+fi
+docker run --rm -i --entrypoint sh "$PROM_IMAGE" \
+    -c 'cat > /tmp/prometheus.yml && promtool check config /tmp/prometheus.yml' \
+    < ./infra/prometheus.yml
+
 echo "-- [4/5] Syncing infrastructure to VPS..."
 scp ./infra/docker-compose.prod.yml "$VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml"
 scp ./infra/Caddyfile "$VPS_USER@$VPS_IP:$DEPLOY_DIR/Caddyfile"
+scp ./infra/prometheus.yml "$VPS_USER@$VPS_IP:$DEPLOY_DIR/prometheus.yml"
 
 # Pin before pulling: compose resolves the image tags from these variables.
 write_remote_tag ETL_TAG "$ETL_TAG"

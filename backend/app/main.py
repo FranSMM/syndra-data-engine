@@ -2,8 +2,12 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from app.core.config import settings
+from app.core.metrics import refresh_domain_metrics
 from app.api.v1.endpoints import sentiment, search
 from app.api.deps import RATE_LIMIT_MAX_REQUESTS
 from app.db.vector_store import init_qdrant_collection
@@ -65,6 +69,31 @@ async def inject_rate_limit_headers(request: Request, call_next):
         response.headers["X-RateLimit-Reset"] = str(request.state.ratelimit_reset)
 
     return response
+
+
+# Instrumented but NOT exposed by the library: .expose() would mount its own
+# bare endpoint, and the domain gauges need a refresh awaited before the
+# registry is serialised. The /metrics route below does both.
+#
+# The scrape itself is excluded from the histograms. At a 15s interval it would
+# be the single most frequent request on the box and would drag every throughput
+# and latency figure towards the cost of serialising the registry.
+Instrumentator(
+    excluded_handlers=["/metrics"],
+    should_instrument_requests_inprogress=True,
+    inprogress_labels=True,
+).instrument(app)
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics_endpoint():
+    """
+    Prometheus scrape target. Reachable only from inside syndra_net: Caddy
+    returns 403 for this path, because the response describes internal routes,
+    latencies and business volumes.
+    """
+    await refresh_domain_metrics()
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 app.include_router(sentiment.router, prefix="/api/v1/sentiment", tags=["Sentiment Analysis"])

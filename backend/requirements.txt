@@ -17,6 +17,10 @@ torch>=2.10.0
 flashtext>=2.7
 redis>=5.0.0
 
+# Observability
+# Pulls prometheus-client, which is what app/core/metrics.py builds on.
+prometheus-fastapi-instrumentator>=8.1.0
+
 
 # Testing
 pytest>=8.0.0
