@@ -193,6 +193,14 @@ docker run --rm -i --entrypoint sh "$PROM_IMAGE" \
 echo "-- [4/5] Syncing infrastructure to VPS..."
 scp ./infra/docker-compose.prod.yml "$VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml"
 scp ./infra/Caddyfile "$VPS_USER@$VPS_IP:$DEPLOY_DIR/Caddyfile"
+
+# Whether prometheus.yml changed decides whether Prometheus gets restarted
+# below, so the comparison has to happen before the file is overwritten.
+PROM_CONF_CHANGED=true
+if [ "$(remote "md5sum '$DEPLOY_DIR/prometheus.yml' 2>/dev/null | cut -d' ' -f1")" \
+   = "$(md5sum ./infra/prometheus.yml | cut -d' ' -f1)" ]; then
+    PROM_CONF_CHANGED=false
+fi
 scp ./infra/prometheus.yml "$VPS_USER@$VPS_IP:$DEPLOY_DIR/prometheus.yml"
 
 # Pin before pulling: compose resolves the image tags from these variables.
@@ -201,6 +209,29 @@ write_remote_tag DEMO_TAG "$DEMO_TAG"
 
 echo "-- [5/5] Restarting containers on VPS (etl=$ETL_TAG demo=$DEMO_TAG)..."
 remote "cd '$DEPLOY_DIR' && docker compose pull && docker compose up -d --remove-orphans"
+
+# Both Caddy and Prometheus read their configuration from a bind mount, and a
+# bind mount is invisible to `docker compose up -d`: the file on disk changes,
+# nothing about the container definition does, so the container is left running
+# whatever it parsed at boot. This is not hypothetical — the 403 on /metrics was
+# written, validated, shipped and silently not applied, and the endpoint served
+# 200 to the public internet until Caddy was reloaded by hand.
+#
+# Caddy is reloaded unconditionally because the reload is graceful and costs
+# nothing: it swaps the config with no dropped connections.
+echo "-- Reloading Caddy (bind-mounted config is not picked up by up -d)..."
+remote "cd '$DEPLOY_DIR' && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile" \
+    || { echo "   Caddy reload FAILED — it is still serving the previous config."; exit 1; }
+
+# Prometheus has no graceful reload without --web.enable-lifecycle, which would
+# add a mutating admin endpoint for the sake of a config that changes twice a
+# year. A restart costs a few missed scrapes and no data: the TSDB is on a
+# volume and the WAL survives. Conditional, so ordinary deploys leave the series
+# unbroken.
+if [ "$PROM_CONF_CHANGED" = true ]; then
+    echo "-- prometheus.yml changed — restarting Prometheus..."
+    remote "cd '$DEPLOY_DIR' && docker compose restart prometheus"
+fi
 
 echo "-- Deployment completed. etl=$ETL_TAG demo=$DEMO_TAG"
 echo "-- Roll back with: ./deploy.sh --rollback etl=<sha>   (or demo=<sha>)"
