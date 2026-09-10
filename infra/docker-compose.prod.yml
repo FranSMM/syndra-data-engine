@@ -223,6 +223,18 @@ services:
     deploy:
       resources:
         limits:
+          # Measured right after the first deploy: memory.current sits at 254MB
+          # of 256MB and memory.events shows thousands of `max` hits. That reads
+          # exactly like the API before its OOM, and it is not the same thing.
+          # The breakdown says so: anon is 8.4MB. Almost the entire resident set
+          # is kernel page cache and slab from walking /sys/fs/cgroup, /proc and
+          # the Docker layer tree — reclaimable, which is why oom_kill stays 0
+          # while the cgroup happily reclaims under its own ceiling.
+          #
+          # So the number to size against is 8MB of heap, not 254MB of cache,
+          # and raising the cap would only let it cache more of the same. Left
+          # at 256M deliberately. If this ever does get OOM-killed, check `anon`
+          # first: only a rise there is a real leak.
           memory: 256M
 
   # Host-level context: memory pressure, disk, load. Cheap, and it is what
