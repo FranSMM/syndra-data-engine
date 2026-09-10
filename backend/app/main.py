@@ -7,7 +7,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.config import settings
-from app.core.metrics import refresh_domain_metrics
+from app.core.metrics import refresh_domain_metrics, refresh_etl_metrics
 from app.api.v1.endpoints import sentiment, search
 from app.api.deps import RATE_LIMIT_MAX_REQUESTS
 from app.db.vector_store import init_qdrant_collection
@@ -92,7 +92,10 @@ async def metrics_endpoint():
     returns 403 for this path, because the response describes internal routes,
     latencies and business volumes.
     """
+    # Two databases, two independent refreshes. Neither raises, so one being
+    # unreachable costs its own gauges and nothing else.
     await refresh_domain_metrics()
+    await refresh_etl_metrics()
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 

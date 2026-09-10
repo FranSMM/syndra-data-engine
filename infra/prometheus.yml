@@ -32,9 +32,28 @@ scrape_configs:
     static_configs:
       - targets: ["syndra_api:8000"]
 
+  # Per-container CPU and memory. The target that carries the FinBERT inference
+  # cost, which is a claim the dissertation makes and could not otherwise back.
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["syndra_cadvisor:8080"]
+
+  # Host-level context behind the container numbers.
+  - job_name: node
+    static_configs:
+      - targets: ["syndra_node_exporter:9100"]
+
   # Prometheus scraping itself. Free, and not optional: this is where TSDB disk
   # usage and active series count come from, which are exactly the two numbers
   # that go wrong quietly.
+  #
+  # Worth knowing before trimming anything else: measured on 09/09/2026, this
+  # job alone was 1101 of the 1257 active series — 88% of the database was
+  # Prometheus watching itself, against 156 for the whole of Syndra. Dropping
+  # its own HTTP handler histograms with metric_relabel_configs would cut about
+  # a third of the daily growth. Deliberately not done: with the size cap now at
+  # 10GB the storage argument is gone, and pre-emptively discarding metrics is
+  # how you find out in October that you threw away the one you needed.
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]

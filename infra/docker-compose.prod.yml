@@ -185,6 +185,72 @@ services:
     # Deliberately NOT depending on api: the demo must still serve its page and
     # explain itself if the API is down, rather than refusing to start.
 
+  # Per-container CPU and memory. This is the one that answers the question the
+  # dissertation actually asks — "what does FinBERT inference cost per batch" is
+  # a question about syndra_scheduler, not about the machine — and it is the
+  # half of this that cannot be recovered later: nothing anywhere has been
+  # recording it.
+  cadvisor:
+    # gcr.io, not google/cadvisor on Docker Hub: that mirror stopped at v0.33.0
+    # in 2019 and is not the same project any more.
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: syndra_cadvisor
+    logging: *default-logging
+    command:
+      # cAdvisor's defaults are written for a Kubernetes node, not a 2-vCPU box.
+      # Left alone it re-reads every cgroup once a second and exports a metric
+      # per CPU core per container; the flags below are what keep it from
+      # costing more CPU than the pipeline it is measuring.
+      - "--docker_only=true"
+      - "--housekeeping_interval=15s"
+      - "--store_container_labels=false"
+      # Dropped because each multiplies series without answering anything here:
+      # percpu splits every counter by core, and the rest describe kernel
+      # subsystems this workload never touches.
+      - "--disable_metrics=percpu,sched,tcp,udp,hugetlb,referenced_memory,cpu_topology,resctrl,advtcp,memory_numa,process"
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Host-level context: memory pressure, disk, load. Cheap, and it is what
+  # explains *why* a container behaved the way cAdvisor says it did.
+  node_exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: syndra_node_exporter
+    logging: *default-logging
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/host"
+      # Without this it reports a filesystem line for every Docker overlay
+      # mount — dozens of series describing layers nobody can act on.
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    networks:
+      - syndra_net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
   prometheus:
     image: prom/prometheus:v3.14.0
     container_name: syndra_prometheus
@@ -206,10 +272,25 @@ services:
       # serves the dissertation: 180 days from today covers the defence with
       # room to spare. Size is the one that protects the box — the documented
       # failure from the internship was a Prometheus with no size cap filling
-      # the disk. At ~100 series scraped every 15s the real footprint is
-      # ~150-200MB, so 2GB is a guardrail, not a constraint.
+      # the disk.
+      #
+      # The size cap was 2GB, sized from a published rule of thumb that assumed
+      # ~100 series. Measured after 34h of real collection: 1257 series, 18.1MB
+      # on disk, ~12.8MB/day. That projects to ~2.3GB over the retention window,
+      # so the guardrail would have quietly become the binding limit around day
+      # 150 and started deleting the earliest history — the history this exists
+      # to keep.
+      #
+      # 10GB is sized for the worst case worth planning for: cAdvisor and
+      # node_exporter together should land somewhere near 3000 series, which is
+      # ~35MB/day and ~6.3GB over 180 days. That puts time back in charge, which
+      # is the whole point of having both limits. The disk is 75GB with 49GB
+      # free, so a 10GB ceiling still cannot fill it.
+      #
+      # Re-measure the real rate a week after this deploys and tighten if the
+      # projection was pessimistic. Do not tighten it by guessing.
       - "--storage.tsdb.retention.time=180d"
-      - "--storage.tsdb.retention.size=2GB"
+      - "--storage.tsdb.retention.size=10GB"
     networks:
       - syndra_net
     restart: unless-stopped
