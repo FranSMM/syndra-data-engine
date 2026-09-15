@@ -129,6 +129,16 @@ services:
     networks:
       - syndra_net
     restart: unless-stopped
+    # Required by the scheduler's depends_on below, which waits for healthy
+    # rather than started. Without a healthcheck here that condition cannot be
+    # satisfied and compose refuses to start the scheduler at all — the two are
+    # a pair and must be edited as one.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://localhost:4200/api/health',timeout=4).status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,7 +163,7 @@ services:
       postgres:
         condition: service_healthy
       prefect_server:
-        condition: service_started
+        condition: service_healthy
       qdrant:
         condition: service_started
     deploy:

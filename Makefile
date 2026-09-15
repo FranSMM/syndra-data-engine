@@ -90,3 +90,36 @@ obs:
 # Misma comprobacion sobre una ventana mas larga: make obs-range W=14d
 obs-range:
 	@bash ./check-observability.sh $(or $(W),14d) || true
+
+# ==============================================================================
+# Desarrollo local y pruebas
+# ==============================================================================
+# Comprueba que existan las rutas que el compose monta. Docker no falla cuando
+# el origen de un bind mount no existe: crea un directorio vacio ahi y luego el
+# contenedor no arranca, con un exit 127 que significa "comando no encontrado"
+# y te manda a buscar un problema que no esta. Cuatro semanas costo la ultima vez.
+check-mounts:
+	@bash ./check-compose-mounts.sh
+
+# Levanta el stack local. La comprobacion va antes a proposito.
+dev: check-mounts
+	@docker compose up -d postgres redis qdrant api
+	@docker compose ps
+
+dev-down:
+	@docker compose down
+
+# Suite de integracion (test_security.py) contra un stack aislado y desechable.
+#
+# NUNCA contra produccion: inserta claves de API reales en la tabla api_keys
+# -- una de ellas con el valor literal 'syndra_test_valid_123', escrito en el
+# codigo fuente -- y lanza 100 peticiones seguidas para provocar un 429. En
+# produccion eso seria una credencial adivinable viva durante la ejecucion,
+# ademas de meter trafico sintetico en las metricas del Capitulo 4.
+test-integration:
+	@bash ./run-integration-tests.sh
+
+# Los tests unitarios no necesitan nada levantado.
+test:
+	@docker compose run --rm --no-deps api python -m pytest /code/tests \
+		--ignore=/code/tests/test_security.py -q

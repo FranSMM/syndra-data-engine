@@ -88,6 +88,17 @@ services:
     ports:
       - "4200:4200"
     restart: unless-stopped
+    # Without this the scheduler below can only wait for the *container* to
+    # exist, not for the API inside it to answer. Measured on a cold start: the
+    # scheduler crash-looped 37 times before Prefect was ready. It recovered,
+    # because restart:unless-stopped kept trying, but 37 tracebacks in the log
+    # are 37 chances to go looking for a bug that is not there.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://localhost:4200/api/health',timeout=4).status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,6 +128,6 @@ services:
       postgres:
         condition: service_healthy
       prefect_server:
-        condition: service_started
+        condition: service_healthy
       qdrant:
         condition: service_started
