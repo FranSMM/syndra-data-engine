@@ -80,6 +80,17 @@ ARTICLES_WITH_TICKERS = Gauge(
     "Enriched articles with at least one extracted ticker",
 )
 
+# The enrichment stores NULL when a feed's date is unparseable or cannot be true
+# — see app/core/dates.py. Those articles are still served by ticker queries but
+# vanish from every time-window query, so without this the rejection is a silent
+# subtraction from the corpus. A rising value here means a feed's dates have
+# started lying, which is a data-quality signal no other metric carries.
+ARTICLES_WITHOUT_DATE = Gauge(
+    "syndra_articles_without_publication_date",
+    "Enriched articles whose publication date was missing or rejected, by source",
+    ["source"],
+)
+
 # --- ETL, derived from Prefect's database ------------------------------------
 # The pipeline runs hourly, so a 24h window is roughly 24 observations per
 # stage: enough for a p95 that means something, short enough that a slowdown
@@ -219,6 +230,9 @@ def _source_stats_statement():
                 )
             )
             .label("with_tickers"),
+            func.count()
+            .filter(Article.published_at.is_(None))
+            .label("without_date"),
             func.extract(
                 "epoch",
                 func.timezone("utc", func.now()) - func.max(Article.published_at),
@@ -242,10 +256,12 @@ def _publish_source_stats(rows) -> None:
     # reported, which is the honest representation.
     ARTICLES.clear()
     SOURCE_LAST_ARTICLE_AGE.clear()
+    ARTICLES_WITHOUT_DATE.clear()
 
     articles_with_tickers = 0
     for row in rows:
         ARTICLES.labels(source=row.source).set(row.total)
+        ARTICLES_WITHOUT_DATE.labels(source=row.source).set(row.without_date or 0)
         articles_with_tickers += row.with_tickers or 0
 
         # NULL when every row of that source lacks a published date. Reporting

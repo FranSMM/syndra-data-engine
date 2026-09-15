@@ -21,12 +21,13 @@ from app.core import metrics
 pytestmark = pytest.mark.asyncio
 
 
-def source_row(source, total=0, with_tickers=0, age=0.0):
+def source_row(source, total=0, with_tickers=0, age=0.0, without_date=0):
     """One row of the per-source aggregate query."""
     return SimpleNamespace(
         source=source,
         total=total,
         with_tickers=with_tickers,
+        without_date=without_date,
         last_article_age_seconds=age,
     )
 
@@ -151,6 +152,24 @@ async def test_source_that_disappears_loses_its_labels():
 
     assert sample("syndra_articles", {"source": "retired_feed"}) is None
     assert sample("syndra_articles", {"source": "global_finance_rss"}) == 9
+
+
+async def test_articles_with_a_rejected_date_are_counted_not_hidden():
+    """
+    The enrichment stores NULL when a feed's date cannot be true. Those articles
+    disappear from every time-window query, so without this gauge the rejection
+    is a silent subtraction from the corpus.
+    """
+    factory = _StubFactory(
+        [source_row("sec_press_releases", total=39, with_tickers=6, age=90.0, without_date=2)],
+        [state_row("processed", 39)],
+    )
+
+    await metrics.refresh_domain_metrics(factory, force=True)
+
+    assert sample(
+        "syndra_articles_without_publication_date", {"source": "sec_press_releases"}
+    ) == 2
 
 
 async def test_source_with_no_published_date_reports_no_age():
