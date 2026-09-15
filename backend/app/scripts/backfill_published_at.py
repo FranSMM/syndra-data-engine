@@ -39,6 +39,7 @@ import logging
 from sqlalchemy import select, update
 
 from app.core.dates import normalise_published_at
+from app.core.source_rules import has_implausible_publication_year
 from app.db.session import AsyncSessionLocal
 from app.models.article import Article
 from app.models.raw_article import RawArticle
@@ -57,7 +58,9 @@ def _page_query(after_id: int):
     return (
         select(
             Article.id,
+            Article.source,
             Article.published_at,
+            RawArticle.url,
             RawArticle.payload["published_at"].astext.label("raw_published_at"),
             RawArticle.created_at.label("ingested_at"),
         )
@@ -85,6 +88,12 @@ async def backfill(dry_run: bool = False) -> None:
                 corrected = normalise_published_at(
                     row.raw_published_at, ingested_at=row.ingested_at
                 )
+                # Same two rules the enrichment applies, in the same order, so a
+                # backfilled row is indistinguishable from a freshly enriched
+                # one. Two copies of this logic drifting apart would be worse
+                # than the bug being fixed.
+                if has_implausible_publication_year(row.source, row.url, corrected):
+                    corrected = None
 
                 if corrected == row.published_at:
                     unchanged += 1

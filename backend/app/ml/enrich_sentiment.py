@@ -3,6 +3,7 @@ import logging
 
 from sqlalchemy import select
 from app.core.dates import normalise_published_at
+from app.core.source_rules import has_implausible_publication_year
 from app.db.session import AsyncSessionLocal
 from app.models.raw_article import RawArticle
 from app.models.article import Article
@@ -64,7 +65,21 @@ async def run_sentiment_enrichment(batch_size: int = 200):
                 published_at = normalise_published_at(
                     published_at_raw, ingested_at=raw_article.created_at
                 )
-                if published_at_raw and published_at is None:
+
+                # A source can also contradict its own date in a way no generic
+                # rule can see. The SEC puts the release year in the URL, and
+                # release 99-110 arrived dated 2026 — plausible enough to pass
+                # everything above, and twenty-seven years wrong.
+                if has_implausible_publication_year(
+                    raw_article.source, raw_article.url, published_at
+                ):
+                    logger.warning(
+                        f"Rejected published_at {published_at} for article "
+                        f"{raw_article.id} ({raw_article.source}): contradicted by "
+                        f"{raw_article.url}. Storing NULL."
+                    )
+                    published_at = None
+                elif published_at_raw and published_at is None:
                     # The article is still enriched and stored, but it will not
                     # appear in any time-window query. Silence here would make
                     # that look like an article we lost.
