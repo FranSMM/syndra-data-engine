@@ -167,10 +167,8 @@ if warnings:
     print("%d AVISO(S):" % len(warnings))
     for w in warnings:
         print("  - %s" % w)
-    # Non-zero on warnings so this can be wired into cron or CI unchanged. Said
-    # out loud because otherwise `make obs` ends on a bare "Error 1" that reads
-    # as the tool being broken rather than as the system having something to say.
-    print("\nSalida 1, que es lo esperado cuando hay avisos. La herramienta esta bien.")
+    # Non-zero on warnings, so this can be dropped into cron or CI unchanged.
+    # `make obs` swallows it deliberately — see the comment on that target.
 else:
     print("Todo correcto.")
 print("=" * 52)
