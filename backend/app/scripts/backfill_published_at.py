@@ -6,10 +6,10 @@ Silver (Article.published_at) through app.core.dates.normalise_published_at.
 Writes ONLY to Silver. Bronze remains immutable.
 
     # show what would change, touch nothing
-    docker compose exec api python -m app.scripts.backfill_published_at --dry-run
+    docker exec syndra_api python -m app.scripts.backfill_published_at --dry-run
 
     # apply
-    docker compose exec api python -m app.scripts.backfill_published_at
+    docker exec syndra_api python -m app.scripts.backfill_published_at
 
 Why this exists. Until 15/09/2026 the enrichment discarded the timezone offset
 instead of converting it: a feed saying "07:00:00-05:00" was stored as 07:00
@@ -19,19 +19,24 @@ right. The 39 SEC articles carry -05:00 and sat five hours early, wider than
 the 3h window the deduplicator compares timestamps against.
 
 The same pass applies the plausibility guard, so articles the SEC's feed dated
-after we ingested them end up with NULL rather than a date three months in the
-future.
+after we ingested them end up with NULL rather than a date months in the future.
 
-Idempotent: it recomputes from Bronze rather than adjusting Silver in place, so
-running it twice changes nothing the second time. That matters — an "add five
-hours" migration run twice would silently shift everything ten.
+Two properties worth preserving if this is ever edited.
+
+**Idempotent.** It recomputes from Bronze rather than adjusting Silver in place,
+so a second run changes nothing. An "add five hours" migration run twice would
+silently shift everything by ten.
+
+**Bounded memory.** It pages by primary key and pulls only the four values it
+needs, extracting the one payload key server-side. Loading ORM objects would
+drag 70k JSONB payloads through a container capped at 1.25G to read one string
+out of each.
 """
 import argparse
 import asyncio
 import logging
 
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import select, update
 
 from app.core.dates import normalise_published_at
 from app.db.session import AsyncSessionLocal
@@ -41,26 +46,44 @@ from app.models.raw_article import RawArticle
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 500
+BATCH_SIZE = 1000
+
+
+def _page_query(after_id: int):
+    """
+    Keyset pagination, not OFFSET: OFFSET re-scans everything it skips, so the
+    last page of a 70k table costs 70k rows to produce.
+    """
+    return (
+        select(
+            Article.id,
+            Article.published_at,
+            RawArticle.payload["published_at"].astext.label("raw_published_at"),
+            RawArticle.created_at.label("ingested_at"),
+        )
+        .join(RawArticle, RawArticle.id == Article.raw_article_id)
+        .where(Article.id > after_id)
+        .order_by(Article.id)
+        .limit(BATCH_SIZE)
+    )
 
 
 async def backfill(dry_run: bool = False) -> None:
-    changed = nulled = unchanged = 0
+    changed = nulled = unchanged = scanned = 0
+    after_id = 0
 
     async with AsyncSessionLocal() as session:
-        stmt = (
-            select(Article)
-            .options(joinedload(Article.raw_article))
-            .order_by(Article.id)
-            .execution_options(yield_per=BATCH_SIZE)
-        )
-        result = await session.stream(stmt)
+        while True:
+            rows = (await session.execute(_page_query(after_id))).all()
+            if not rows:
+                break
 
-        async for article in (await result.scalars()).partitions(BATCH_SIZE):
-            for row in article:
-                raw = row.raw_article.payload.get("published_at") if row.raw_article else None
+            for row in rows:
+                scanned += 1
+                after_id = row.id
+
                 corrected = normalise_published_at(
-                    raw, ingested_at=row.raw_article.created_at if row.raw_article else None
+                    row.raw_published_at, ingested_at=row.ingested_at
                 )
 
                 if corrected == row.published_at:
@@ -70,33 +93,32 @@ async def backfill(dry_run: bool = False) -> None:
                 if corrected is None:
                     nulled += 1
                     logger.info(
-                        "id=%s %s: %s -> NULL (feed said %r, ingested %s)",
-                        row.id, row.source, row.published_at, raw,
-                        row.raw_article.created_at if row.raw_article else "?",
+                        "id=%s: %s -> NULL (feed said %r, ingested %s)",
+                        row.id, row.published_at, row.raw_published_at, row.ingested_at,
                     )
                 else:
                     changed += 1
-                    logger.info(
-                        "id=%s %s: %s -> %s", row.id, row.source, row.published_at, corrected
-                    )
+                    logger.info("id=%s: %s -> %s", row.id, row.published_at, corrected)
 
                 if not dry_run:
-                    row.published_at = corrected
+                    await session.execute(
+                        update(Article)
+                        .where(Article.id == row.id)
+                        .values(published_at=corrected)
+                    )
 
             if not dry_run:
                 await session.commit()
 
     verb = "would change" if dry_run else "changed"
     logger.info(
-        "Done. %s %d timestamps, %s %d to NULL, left %d untouched.",
-        verb, changed, verb, nulled, unchanged,
+        "Scanned %d. %s %d timestamps, %s %d to NULL, left %d untouched.",
+        scanned, verb, changed, verb, nulled, unchanged,
     )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--dry-run", action="store_true", help="report changes without writing"
-    )
+    parser = argparse.ArgumentParser(description="Re-derive Silver published_at from Bronze.")
+    parser.add_argument("--dry-run", action="store_true", help="report changes without writing")
     args = parser.parse_args()
     asyncio.run(backfill(dry_run=args.dry_run))
