@@ -4,7 +4,7 @@ Unit tests for the Prometheus domain collectors (app/core/metrics.py).
 Like test_deduplication.py, these need no running stack: the session factory is
 stubbed, so the SQLAlchemy statements are built but never executed. What is
 under test is the translation from query rows to gauge samples, plus the two
-behaviours that are easy to get silently wrong — the 60s cache that keeps a
+behaviours that are easy to get silently wrong: the 60s cache that keeps a
 15s scrape from hammering Postgres, and the removal of labels for sources that
 have stopped existing.
 
@@ -48,7 +48,7 @@ class _StubResult:
 class _StubSession:
     """
     Returns the queued result sets in call order: first execute() answers the
-    per-source query, second the ingestion-state one. Order-coupled on purpose —
+    per-source query, second the ingestion-state one. Order-coupled on purpose:
     it keeps the stub trivial, and refresh_domain_metrics runs exactly these two
     statements in exactly this order.
     """
@@ -98,7 +98,7 @@ async def test_source_gauges_are_set_from_query_rows():
     assert sample(
         "syndra_source_last_article_age_seconds", {"source": "sec_press_releases"}
     ) == 1_209_600.0
-    # Global gauge, summed across sources — never labelled by ticker (10k+ series).
+    # Global gauge, summed across sources: never labelled by ticker (10k+ series).
     assert sample("syndra_articles_with_tickers") == 1140
 
 
@@ -134,7 +134,7 @@ async def test_ingestion_states_are_reported_when_present():
 async def test_source_that_disappears_loses_its_labels():
     """
     Gauge children persist until removed. Without an explicit clear, a source
-    dropped from feeds.json would keep reporting its last value forever — a
+    dropped from feeds.json would keep reporting its last value forever: a
     frozen series is worse than an absent one, because it looks alive.
     """
     first = _StubFactory(

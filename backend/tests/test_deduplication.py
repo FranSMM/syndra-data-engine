@@ -3,7 +3,7 @@ Unit tests for the Late Deduplication logic in the serving layer (ADR 033).
 
 Unlike test_security.py, these tests need no running stack: the DB session is
 stubbed, so the SQLAlchemy statement is built but never executed. That keeps the
-most subtle logic in the codebase — the title/sentiment/time dedup heuristic —
+most subtle logic in the codebase: the title/sentiment/time dedup heuristic,
 covered by a suite that runs anywhere, including CI without services.
 """
 from datetime import datetime, timedelta
@@ -15,7 +15,7 @@ from app.services.sentiment_service import fetch_recent_signals
 
 # Marked explicitly rather than relying on `asyncio_mode = auto` in pytest.ini.
 # That file is not copied into the API image nor mounted by Compose, so inside
-# the container — which is the documented way to run the suite — pytest falls
+# the container, which is the documented way to run the suite, pytest falls
 # back to strict mode and every async test here errors with "async def functions
 # are not natively supported". The marker makes the file work in both places.
 pytestmark = pytest.mark.asyncio

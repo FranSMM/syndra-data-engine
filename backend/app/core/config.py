@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Prefect's own database, on the same Postgres server, read-only from here.
     # Prefect records the start, end and state of every task run it executes, so
-    # the per-stage ETL durations already exist there — going back to April,
+    # the per-stage ETL durations already exist there: going back to April,
     # months before anything was instrumented. That is why the ETL metrics are
     # derived from this database instead of being counted inside the pipeline
     # (see app/core/metrics.py), and it is also the only way to get them at all:
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     @property
     def PREFECT_DATABASE_URI(self) -> str:
         # Prefect requires an async driver for this URL too, so whatever it is
-        # configured with is already asyncpg — no scheme rewriting needed.
+        # configured with is already asyncpg: no scheme rewriting needed.
         if self.PREFECT_API_DATABASE_CONNECTION_URL:
             return self.PREFECT_API_DATABASE_CONNECTION_URL
 

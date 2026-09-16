@@ -21,12 +21,12 @@
 For deterministic builds and avoiding dependency hell (e.g., CUDA drift or PEP 668 limits on Linux), development heavily favors our Docker container workflows.
 
 ### 1. Environment & Network
-Configure your local environment by copying the example globals. The template lives in `backend/`, but the working `.env` belongs at the **repository root** — that is where Compose and `deploy.sh` read it from. Ensure no sensitive B2B keys or production DB passwords are committed:
+Configure your local environment by copying the example globals. The template lives in `backend/`, but the working `.env` belongs at the **repository root**: that is where Compose and `deploy.sh` read it from. Ensure no sensitive B2B keys or production DB passwords are committed:
 ```bash
 # from the repository root
 cp backend/.env.example .env
 ```
-*`POSTGRES_SERVER` must be set to `postgres` (the Compose service name), not `db` or `localhost` — Alembic resolves it as a DNS name from inside the container.*
+*`POSTGRES_SERVER` must be set to `postgres` (the Compose service name), not `db` or `localhost`: Alembic resolves it as a DNS name from inside the container.*
 
 ### 2. General Infrastructure Spin-up
 Deploy the backing databases (Postgres & Qdrant) alongside the FastAPI orchestration API.

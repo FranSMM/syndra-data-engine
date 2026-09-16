@@ -1,10 +1,10 @@
 # Cloudflare Pages reads this file from the build output directory and applies
 # the rules below to matching responses. It is the Pages equivalent of the
-# header block a Caddy site would carry — Pages does not read the Caddyfile,
+# header block a Caddy site would carry: Pages does not read the Caddyfile,
 # which only serves api.syndradata.com from the VPS.
 #
 # Syntax: a path pattern on its own line, then indented "Header: value" lines.
-# No blank line inside a block. Most specific rule does not win — every matching
+# No blank line inside a block. Most specific rule does not win: every matching
 # block applies, so keep the paths disjoint.
 
 /*
@@ -13,11 +13,11 @@
   # the browser blocks it and the mistake is visible immediately.
   #
   # style-src stays 'self' with no 'unsafe-inline'. That is only possible
-  # because the markup carries zero inline style attributes — see the utility
+  # because the markup carries zero inline style attributes: see the utility
   # classes at the top of styles.css. Adding one style="…" back would break
   # the page under this policy.
   #
-  # form-action allows mailto: because the access form posts that way until a
+  # form-action allows mailto, because the access form posts that way until a
   # self-hosted endpoint exists.
   Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self' mailto:; frame-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -29,7 +29,7 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
 
 # Fonts are immutable: the filename changes when the font does, so they can be
-# cached for a year. This is the single biggest win available here — 54KB that
+# cached for a year. This is the single biggest win available here: 54KB that
 # a returning visitor never fetches twice.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable

@@ -32,21 +32,21 @@ def init_qdrant_collection():
         # Idempotent: Qdrant silently skips if the index already exists.
         logger.info("Ensuring payload indexes exist...")
 
-        # KEYWORD index on tickers array — enables exact match filtering (e.g. "AAPL")
+        # KEYWORD index on tickers array: enables exact match filtering (e.g. "AAPL")
         qdrant.create_payload_index(
             collection_name=COLLECTION_NAME,
             field_name="tickers",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
 
-        # KEYWORD index on sentiment_label — enables filtering by "positive"/"negative"/"neutral"
+        # KEYWORD index on sentiment_label: enables filtering by "positive"/"negative"/"neutral"
         qdrant.create_payload_index(
             collection_name=COLLECTION_NAME,
             field_name="sentiment_label",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
 
-        # DATETIME index on published_at — enables range queries (last 7 days, etc.)
+        # DATETIME index on published_at: enables range queries (last 7 days, etc.)
         qdrant.create_payload_index(
             collection_name=COLLECTION_NAME,
             field_name="published_at",

@@ -31,7 +31,7 @@ class EmbeddingService:
             logger.error(f"Failed to generate embeddings for batch of texts")
             raise
 
-# Lazy-loaded singleton — model is NOT loaded at import time.
+# Lazy-loaded singleton: model is NOT loaded at import time.
 # This prevents the API from eagerly loading ~90MB of weights on every
 # startup / hot-reload. The model is only loaded on first actual use.
 _embedding_engine: EmbeddingService | None = None

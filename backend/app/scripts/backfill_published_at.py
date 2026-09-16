@@ -1,5 +1,5 @@
 """
-Publication Date Backfill — re-derives Silver's published_at from Bronze.
+Publication Date Backfill: re-derives Silver's published_at from Bronze.
 
 Reads the untouched feed string from Bronze (RawArticle payload) and rewrites
 Silver (Article.published_at) through app.core.dates.normalise_published_at.
@@ -14,7 +14,7 @@ Writes ONLY to Silver. Bronze remains immutable.
 Why this exists. Until 15/09/2026 the enrichment discarded the timezone offset
 instead of converting it: a feed saying "07:00:00-05:00" was stored as 07:00
 rather than 12:00. Feeds emitting Z were unaffected, which is why this went
-unseen — 69,962 of 70,001 articles came from two UTC feeds and were always
+unseen: 69,962 of 70,001 articles came from two UTC feeds and were always
 right. The 39 SEC articles carry -05:00 and sat five hours early, wider than
 the 3h window the deduplicator compares timestamps against.
 

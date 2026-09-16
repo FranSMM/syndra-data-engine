@@ -50,6 +50,6 @@ PrefectSessionLocal = async_sessionmaker(
 
 # NOTE: the FastAPI request-scoped dependency lives in app/api/deps.py::get_db.
 # A second, slightly different copy used to sit here and was never imported by
-# anything — two definitions of the same dependency is an invitation to drift.
+# anything: two definitions of the same dependency is an invitation to drift.
 # This module owns the engine and the session factory only; the ETL scripts and
 # the API both build on AsyncSessionLocal directly.

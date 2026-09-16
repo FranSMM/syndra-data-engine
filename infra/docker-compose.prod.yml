@@ -69,7 +69,7 @@ services:
     image: ghcr.io/fransmm/syndra-etl:${ETL_TAG:-latest}
     container_name: syndra_api
     logging: *default-logging
-    # No host ports — Caddy is the only ingress. API is reachable
+    # No host ports: Caddy is the only ingress. API is reachable
     # only via Docker's internal syndra_net network.
     env_file: .env
     # One worker, not two. prometheus_client keeps its registry in the memory of
@@ -78,7 +78,7 @@ services:
     # independent histories and every graph drawn from them would be a lie.
     # prometheus_client's multiprocess mode exists to solve exactly this, but it
     # wants a shared directory, cleanup when a worker dies, and it degrades
-    # gauge semantics — real complexity to keep a worker that was never earning
+    # gauge semantics: real complexity to keep a worker that was never earning
     # its place. The API is async and its only CPU-bound work already runs in a
     # threadpool via asyncio.to_thread, so concurrency comes from the event
     # loop, not from workers.
@@ -100,7 +100,7 @@ services:
           # compressed by constant reclaim. Raising it to 768M revealed the real
           # figure: 789MB of anonymous memory, 395MB + 394MB across the two
           # uvicorn workers, each of which imports torch and
-          # sentence-transformers at module load — roughly 390MB before any
+          # sentence-transformers at module load: roughly 390MB before any
           # model weights exist. /search/semantic then adds a MiniLM copy per
           # worker on first use.
           #
@@ -109,7 +109,7 @@ services:
           # two of each.
           #
           # The cap stays at 1.25G anyway. A limit is a ceiling, not a
-          # reservation — lowering it frees nothing for the other containers,
+          # reservation: lowering it frees nothing for the other containers,
           # it only moves the point at which the OOM killer intervenes. The
           # memory actually released by the second worker is real and available
           # regardless. Re-measure with `docker stats` and memory.peak after a
@@ -131,7 +131,7 @@ services:
     restart: unless-stopped
     # Required by the scheduler's depends_on below, which waits for healthy
     # rather than started. Without a healthcheck here that condition cannot be
-    # satisfied and compose refuses to start the scheduler at all — the two are
+    # satisfied and compose refuses to start the scheduler at all: the two are
     # a pair and must be edited as one.
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://localhost:4200/api/health',timeout=4).status==200 else 1)\""]
@@ -196,8 +196,8 @@ services:
     # explain itself if the API is down, rather than refusing to start.
 
   # Per-container CPU and memory. This is the one that answers the question the
-  # dissertation actually asks — "what does FinBERT inference cost per batch" is
-  # a question about syndra_scheduler, not about the machine — and it is the
+  # dissertation actually asks: "what does FinBERT inference cost per batch" is
+  # a question about syndra_scheduler, not about the machine, and it is the
   # half of this that cannot be recovered later: nothing anywhere has been
   # recording it.
   cadvisor:
@@ -238,7 +238,7 @@ services:
           # exactly like the API before its OOM, and it is not the same thing.
           # The breakdown says so: anon is 8.4MB. Almost the entire resident set
           # is kernel page cache and slab from walking /sys/fs/cgroup, /proc and
-          # the Docker layer tree — reclaimable, which is why oom_kill stays 0
+          # the Docker layer tree: reclaimable, which is why oom_kill stays 0
           # while the cgroup happily reclaims under its own ceiling.
           #
           # So the number to size against is 8MB of heap, not 254MB of cache,
@@ -258,7 +258,7 @@ services:
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/host"
       # Without this it reports a filesystem line for every Docker overlay
-      # mount — dozens of series describing layers nobody can act on.
+      # mount: dozens of series describing layers nobody can act on.
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     pid: host
     volumes:
@@ -292,7 +292,7 @@ services:
       - "--storage.tsdb.path=/prometheus"
       # Two retention limits, and they are not redundant. Time is the one that
       # serves the dissertation: 180 days from today covers the defence with
-      # room to spare. Size is the one that protects the box — the documented
+      # room to spare. Size is the one that protects the box: the documented
       # failure from the internship was a Prometheus with no size cap filling
       # the disk.
       #
@@ -300,7 +300,7 @@ services:
       # ~100 series. Measured after 34h of real collection: 1257 series, 18.1MB
       # on disk, ~12.8MB/day. That projects to ~2.3GB over the retention window,
       # so the guardrail would have quietly become the binding limit around day
-      # 150 and started deleting the earliest history — the history this exists
+      # 150 and started deleting the earliest history: the history this exists
       # to keep.
       #
       # 10GB is sized for the worst case worth planning for: cAdvisor and

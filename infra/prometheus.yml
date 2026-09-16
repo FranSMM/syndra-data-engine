@@ -48,7 +48,7 @@ scrape_configs:
   # that go wrong quietly.
   #
   # Worth knowing before trimming anything else: measured on 09/09/2026, this
-  # job alone was 1101 of the 1257 active series — 88% of the database was
+  # job alone was 1101 of the 1257 active series: 88% of the database was
   # Prometheus watching itself, against 156 for the whole of Syndra. Dropping
   # its own HTTP handler histograms with metric_relabel_configs would cut about
   # a third of the daily growth. Deliberately not done: with the size cap now at

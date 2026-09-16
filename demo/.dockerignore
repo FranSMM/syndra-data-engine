@@ -7,7 +7,7 @@ __pycache__
 *.pyc
 .venv
 
-# Not needed at runtime — the Dockerfile pins the interpreter and the build
+# Not needed at runtime: the Dockerfile pins the interpreter and the build
 # instructions are not part of what runs.
 Dockerfile
 .dockerignore

@@ -3,13 +3,13 @@ Unit tests for the Bronze -> Silver publication-date normalisation.
 
 Distinct from test_pubdate_normalisation.py, which covers the *ingestion* side:
 turning an RFC 822 <pubDate> into something Pydantic accepts before it reaches
-Bronze. This covers the next boundary along — reading that stored string back
+Bronze. This covers the next boundary along: reading that stored string back
 out and deciding what Silver should hold.
 
 Two failures found in production on 15/09/2026 motivate the whole module:
 
 1. The offset was discarded rather than converted. "07:00:00-05:00" was stored
-   as 07:00 instead of 12:00, putting all 39 SEC articles five hours early —
+   as 07:00 instead of 12:00, putting all 39 SEC articles five hours early,
    wider than the 3h deduplication window they are compared against.
 2. Three 1990s SEC press releases arrived from the feed dated 2026. Two of them
    claimed a publication date after we had already ingested them, which cannot
@@ -78,7 +78,7 @@ def test_a_little_ahead_of_ingestion_is_tolerated():
 
 def test_an_old_article_is_kept():
     """
-    Press release 99-110 is from 1999 and the feed dated it 2026-09-07 — before
+    Press release 99-110 is from 1999 and the feed dated it 2026-09-07: before
     we ingested it, so this guard cannot catch it and must not pretend to.
     Detecting that one needs the release number in the URL, which is source
     specific and deliberately not part of this function.

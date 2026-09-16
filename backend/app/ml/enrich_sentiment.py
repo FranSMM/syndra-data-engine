@@ -68,7 +68,7 @@ async def run_sentiment_enrichment(batch_size: int = 200):
 
                 # A source can also contradict its own date in a way no generic
                 # rule can see. The SEC puts the release year in the URL, and
-                # release 99-110 arrived dated 2026 — plausible enough to pass
+                # release 99-110 arrived dated 2026: plausible enough to pass
                 # everything above, and twenty-seven years wrong.
                 if has_implausible_publication_year(
                     raw_article.source, raw_article.url, published_at

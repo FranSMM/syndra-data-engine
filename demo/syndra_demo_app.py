@@ -99,7 +99,7 @@ def secret(name: str, default: str = "") -> str:
     `st.secrets.get(name, default)` does not: with no secrets.toml on disk the
     lookup raises StreamlitSecretNotFoundError from inside __getitem__, before
     the default is ever considered, and the script dies at import time. That
-    contradicts the fallback this app documents below — a fork or a local run
+    contradicts the fallback this app documents below: a fork or a local run
     is meant to degrade into asking the visitor for a key, not into a
     traceback. Worse, the container's healthcheck only probes /_stcore/health,
     which stays green while every page load is a stack trace, so a failed
@@ -128,7 +128,7 @@ with st.sidebar:
     # email address to write to.
     #
     # The key lives in Streamlit's server-side secrets and never reaches the
-    # browser. If it is absent — a fork, a local run — the app falls back to
+    # browser. If it is absent: a fork, a local run, the app falls back to
     # asking, exactly as before.
     DEMO_KEY = secret("DEMO_API_KEY", "")
 
@@ -149,7 +149,7 @@ with st.sidebar:
         else:
             api_key = DEMO_KEY
             st.caption(
-                "Live data via the shared demo key — rate limited across all "
+                "Live data via the shared demo key: rate limited across all "
                 "visitors, so it may pause briefly under load."
             )
     else:
@@ -270,11 +270,11 @@ def fetch_sentiment_data(ticker_symbol: str, api_key: str, limit: int, d_window:
         if resp.status_code in (401, 403):
             raise ValueError("Invalid API Key. Please check your credentials.")
         elif resp.status_code == 429:
-            # On the shared demo key this is nobody's fault in particular — the
+            # On the shared demo key this is nobody's fault in particular: the
             # budget is pooled across everyone browsing at that moment. Say so,
             # or it reads as "you did something wrong" and the visitor leaves.
             raise ValueError(
-                "The shared demo key has hit its limit — 100 requests a minute "
+                "The shared demo key has hit its limit: 100 requests a minute "
                 "across all visitors. Wait about a minute and try again, or "
                 "switch on 'Use my own API key' in the sidebar."
             )
@@ -375,7 +375,7 @@ with st.expander("📖 Understanding the Scoring Methodology", expanded=False):
         <p>
         <strong>Why can average_score be low while label is "neutral"?</strong><br>
         When the model detects <em>conflicting vocabulary</em> or <em>low confidence across all classes</em>,
-        the score clusters near 0.0 and the label defaults to "neutral". This is <strong>not a bug</strong> —
+        the score clusters near 0.0 and the label defaults to "neutral". This is <strong>not a bug</strong>:
         it indicates market uncertainty or mixed signals in the news corpus.
         </p>
         <p>
@@ -402,7 +402,7 @@ if signals:
         color="sentiment_label",
         color_discrete_map={"positive": "#5cc98a", "negative": "#e8604a", "neutral": "#928f87"},
         hover_data={"title": True, "source": True, "sentiment_score": ":.4f"},
-        title=f"Sentiment Score Evolution — {ticker}",
+        title=f"Sentiment Score Evolution: {ticker}",
         labels={"published_at": "Published At", "sentiment_score": "Sentiment Score"},
     )
     fig_timeline.update_traces(marker=dict(size=10, opacity=0.8))

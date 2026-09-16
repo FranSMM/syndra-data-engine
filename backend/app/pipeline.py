@@ -39,7 +39,7 @@ def run_extraction():
 
         logger.info(f"Crawling source '{feed_name}' ({source_type}): {feed_url}")
 
-        # Each feed writes to its own file — no data loss between sources
+        # Each feed writes to its own file: no data loss between sources
         result = subprocess.run(
             [
                 "scrapy", "crawl", "generic_rss",

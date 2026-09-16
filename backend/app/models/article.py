@@ -10,7 +10,7 @@ from app.db.base import Base
 
 class Article(Base):
     """
-    Silver Layer — Enriched, structured article data.
+    Silver Layer: Enriched, structured article data.
     Produced by the ML pipeline (FinBERT + ticker extraction).
     This table is the Single Source of Truth for the API layer.
 

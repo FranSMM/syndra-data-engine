@@ -7,7 +7,7 @@
 # in tests/ stubs the session and runs anywhere.
 #
 # It gets its own disposable stack rather than the development one for two
-# reasons. It writes to the database — inserting and then deleting API keys —
+# reasons. It writes to the database: inserting and then deleting API keys,
 # so a crashed run leaves rows behind, and the local stack is somewhere you
 # keep data you care about. And its containers are named distinctly, so running
 # this never collides with whatever you already have up.

@@ -5,7 +5,7 @@ Every false-positive case below was taken from a real production headline, not
 invented. Before the fix, 29.4% of all ticker attachments in the corpus came
 from 1-2 character symbols, and 7,451 articles carried nothing but those.
 
-Needs no running stack — the extractor only reads the bundled dictionary.
+Needs no running stack: the extractor only reads the bundled dictionary.
 """
 import pytest
 
@@ -73,8 +73,8 @@ def test_the_known_cost_is_the_bare_short_symbol_in_a_ticker_list(tx):
     """
     Documents what the rule gives up, so it is a recorded trade rather than a
     surprise: a 1-2 character ticker mentioned only as a bare symbol, with the
-    company never named, is no longer matched. Measured as rare — GT did not
-    reach the top 15 of removed symbols — and accepted in exchange for removing
+    company never named, is no longer matched. Measured as rare: GT did not
+    reach the top 15 of removed symbols, and accepted in exchange for removing
     847 noise attachments per 4,000 headlines.
     """
     assert "GT" not in tx.extract("Market Digest: MKL, AVY, FISV, GT, XEL")

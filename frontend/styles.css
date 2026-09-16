@@ -1,20 +1,20 @@
 /* ============================================================================
-   SYNDRA — styles.css
+   SYNDRA: styles.css
    Layout and components. Colour comes exclusively from tokens.css, by role.
    No hex literal, no preprocessor, no framework.
    ============================================================================ */
 
-/* Self-hosted, latin subset — English and Spanish in full, accents and
+/* Self-hosted, latin subset: English and Spanish in full, accents and
    inverted punctuation included. Nothing is fetched at runtime.
 
    Space Grotesk replaced IBM Plex Sans, which was indistinguishable from the
-   system UI font at body sizes — the point of self-hosting a face is lost if
+   system UI font at body sizes: the point of self-hosting a face is lost if
    nobody can tell it apart from the fallback. Space Grotesk is a geometric
    grotesque with genuinely distinctive letterforms, and it echoes the wide
    geometric wordmark without being a novelty face.
 
    JetBrains Mono replaced Plex Mono for the code, tickers and metrics: taller
-   x-height, more open apertures, and instantly legible as a developer face —
+   x-height, more open apertures, and instantly legible as a developer face,
    which is exactly the signal the API samples should send.
 
    Both ship as VARIABLE fonts, so one file per family covers every weight and
@@ -64,7 +64,7 @@ svg{max-width:100%}
 .skip{position:absolute;left:-9999px}
 .skip:focus{left:16px;top:12px;z-index:100;background:var(--accent);color:var(--on-accent);padding:8px 14px;border-radius:6px}
 
-/* Node-graph motif — the wordmark geometry, reused as marks and dividers.
+/* Node-graph motif: the wordmark geometry, reused as marks and dividers.
    The leading node takes the gold so every instance of the mark has one warm
    point that catches the eye; the rest stay ink so the figure still reads as
    a graph and not as decoration. */
@@ -77,13 +77,13 @@ svg{max-width:100%}
 
 /* ---------- Emphasis ----------
    Key terms take the warm text gold and a heavier weight. Colour plus weight,
-   no background band and no underline — the word reads as part of the sentence
+   no background band and no underline: the word reads as part of the sentence
    and still catches the eye. Use sparingly: three or four phrases on the whole
    page, or nothing is emphasised any more. */
 .hl{color:var(--warm-text);font-weight:600}
 
 /* Metallic sheen for gold fills: a light source at the top-left, a deeper step
-   at the bottom. Two stops only — enough to read as a surface catching light,
+   at the bottom. Two stops only: enough to read as a surface catching light,
    not a gradient for its own sake. */
 .sheen{
   background-image:linear-gradient(152deg,var(--warm-fill-hover) 0%,var(--warm-fill) 46%,var(--gold-deep) 100%);
@@ -163,7 +163,7 @@ pre.wrap-cmd{white-space:pre-wrap;line-height:1.9;border-bottom:1px solid var(--
 .tok-c{color:var(--fg-faint)}                 /* comment               */
 .tok-sent{color:var(--pos)}                   /* sentiment DATA value  */
 
-/* Sentiment chips — colour never travels without the label. */
+/* Sentiment chips: colour never travels without the label. */
 .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
 .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:6px 12px;font:400 12px/1 var(--mono);color:var(--fg)}
 .sw{width:9px;height:9px;border-radius:2px}
@@ -286,7 +286,7 @@ footer{background:var(--bg-2)}
   .foot-nav{gap:32px}
 
   /* The header runs out of room here. Measured at 360px, the four controls
-     plus their gaps come to roughly 436px — the row overflows and takes the
+     plus their gaps come to roughly 436px: the row overflows and takes the
      whole page into horizontal scroll with it.
      The "Request access" button goes first: the same call to action appears
      again in the hero and once more in the access section, so nothing is lost,
@@ -308,7 +308,7 @@ footer{background:var(--bg-2)}
   .lede,.hero-sub{font-size:16px}
 }
 
-/* Small phones. Nothing here is a new decision — it is the same layout with
+/* Small phones. Nothing here is a new decision: it is the same layout with
    the last of the slack taken out. */
 @media (max-width:380px){
   h1{font-size:29px}

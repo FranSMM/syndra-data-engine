@@ -1,4 +1,4 @@
-/* Syndra landing — the only script on the page. Vanilla, no dependencies.
+/* Syndra landing: the only script on the page. Vanilla, no dependencies.
    Everything here is an enhancement: with JS disabled the page is fully readable
    (English copy, final metric figures, native <details> nav and FAQ). */
 (function () {

@@ -1,7 +1,7 @@
 # Python 3.12 rather than the 3.11 the backend pins: this app has been running
 # on 3.12 in Streamlit Cloud for months (its runtime.txt says so), and moving it
 # in-house is not the moment to also change the interpreter under it. The
-# divergence is deliberate and costs nothing — the two services share no code.
+# divergence is deliberate and costs nothing: the two services share no code.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -26,7 +26,7 @@ COPY syndra_demo_app.py /app/
 # re-pushing the image instead of editing one line on the VPS.
 
 # Run as a non-root user: this is the only publicly reachable container on the
-# box. UID 1000 is not arbitrary — it matches the `syndra` user on the VPS that
+# box. UID 1000 is not arbitrary: it matches the `syndra` user on the VPS that
 # owns the 0600 secrets file, so the read-only bind mount stays readable inside
 # the container without loosening its permissions on the host.
 RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin demo \

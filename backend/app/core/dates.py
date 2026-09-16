@@ -8,8 +8,8 @@ FinBERT, and the rules below deserve a test suite that runs anywhere.
 
 Two things happen here, and they fail in different ways.
 
-**Timezone conversion.** Everything downstream — the time-window filter, the
-ordering of recent signals, the deduplication heuristic — treats
+**Timezone conversion.** Everything downstream: the time-window filter, the
+ordering of recent signals, the deduplication heuristic: treats
 Article.published_at as naive UTC. An offset-bearing timestamp must therefore be
 converted, not stripped. Stripping was the original bug: the SEC emits -05:00,
 and "07:00:00-05:00" was being stored as 07:00 instead of 12:00. Five hours is

@@ -3,7 +3,7 @@ Prometheus domain collectors.
 
 The HTTP metrics (latency, throughput, error rate) come for free from
 prometheus-fastapi-instrumentator. What lives here is the half no library can
-guess: the facts that make Syndra Syndra — how fresh each source is, how big
+guess: the facts that make Syndra Syndra, how fresh each source is, how big
 the corpus has grown, whether enrichment is keeping up.
 
 Two design points worth keeping in mind before editing this file.
@@ -11,7 +11,7 @@ Two design points worth keeping in mind before editing this file.
 **These gauges are derived, not counted.** Every number below is the answer to a
 SQL query, not a counter incremented as the pipeline runs. In-process counters
 reset when the container restarts and drift from the database the moment
-anything writes to Postgres from outside the API — the scheduler does exactly
+anything writes to Postgres from outside the API: the scheduler does exactly
 that, every hour. Deriving is what the Prometheus exporter guidelines call for
 when the backing store already holds the truth, and INC-021 is the local
 precedent for what a second copy of the truth costs.
@@ -21,8 +21,8 @@ ticker would be 10657 series per metric in the TSDB head block, which on this
 box means an OOM, not a slow dashboard.
 
 A note on the names, because the obvious ones are wrong: none of these gauges
-carries a `_total` suffix. Prometheus reserves that suffix for counters —
-monotonic, only ever increasing — and `promtool check metrics` rejects it on
+carries a `_total` suffix. Prometheus reserves that suffix for counters:
+monotonic, only ever increasing, and `promtool check metrics` rejects it on
 anything else ("non-counter metrics should not have _total suffix"). These are
 gauges: the corpus shrinks if rows are deleted, and pending falls back to zero
 every time the pipeline catches up. Worth getting right the first time, since a
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 DOMAIN_METRICS_TTL_SECONDS = 60
 
 # Ingestion states that must always be reported. A state missing from the
-# GROUP BY means zero rows in it, and zero is a fact worth graphing — especially
+# GROUP BY means zero rows in it, and zero is a fact worth graphing: especially
 # `failed`, where a flat zero line is the claim being made.
 _TRACKED_INGESTION_STATES = ("pending", "failed")
 
@@ -81,7 +81,7 @@ ARTICLES_WITH_TICKERS = Gauge(
 )
 
 # The enrichment stores NULL when a feed's date is unparseable or cannot be true
-# — see app/core/dates.py. Those articles are still served by ticker queries but
+#: see app/core/dates.py. Those articles are still served by ticker queries but
 # vanish from every time-window query, so without this the rejection is a silent
 # subtraction from the corpus. A rising value here means a feed's dates have
 # started lying, which is a data-quality signal no other metric carries.
@@ -99,7 +99,7 @@ ETL_WINDOW_HOURS = 24
 
 # Prefect appends a short hash to every task run name ("Load: PostgreSQL
 # async-f49"), which makes each execution a distinct string. Used raw as a label
-# it would create a new time series per run — the cardinality explosion, arriving
+# it would create a new time series per run: the cardinality explosion, arriving
 # from an unexpected direction. Stripped back to the stage name declared in
 # app/pipeline.py.
 _STAGE_NAME_SUFFIX = r"-[0-9a-f]+$"

@@ -1,5 +1,5 @@
 """
-Vector backfill script — reads from Silver Layer (Article) instead of Bronze.
+Vector backfill script: reads from Silver Layer (Article) instead of Bronze.
 Generates embeddings with all-MiniLM-L6-v2 and upserts into Qdrant.
 
 Usage:

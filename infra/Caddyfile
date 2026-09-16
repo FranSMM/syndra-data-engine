@@ -2,7 +2,7 @@ api.syndradata.com {
 	# /metrics belongs to Prometheus, which reaches it over syndra_net without
 	# ever passing through Caddy. From the internet it must not exist: the
 	# response enumerates every route, its latency distribution and the size of
-	# the corpus — internal topology and business volume handed to whoever asks.
+	# the corpus: internal topology and business volume handed to whoever asks.
 	# Prometheus ships no authentication of its own, so the block lives here.
 	#
 	# handle blocks rather than a bare respond: they are mutually exclusive and

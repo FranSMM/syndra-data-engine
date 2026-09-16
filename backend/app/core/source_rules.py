@@ -2,7 +2,7 @@
 Per-source publication-date rules.
 
 Kept out of app/core/dates.py on purpose. That module holds rules true of any
-feed — an offset must be converted, nothing can be published after it is read —
+feed: an offset must be converted, nothing can be published after it is read,
 and stays worth trusting precisely because it knows nothing about any particular
 publisher. This module is where a rule that only applies to one source lives, so
 the coupling is visible in the import rather than buried in an `if` inside the
@@ -11,8 +11,8 @@ enrichment loop.
 The rule here exists because the generic guard provably cannot catch one real
 case. The SEC's newsroom feed republishes 1990s press releases stamped with the
 current year. Two arrived dated months in the future and were rejected; release
-99-110, "President's Year 2000 Council", arrived dated 2026-09-07 — before we
-read it, therefore plausible — and sat in the corpus counted as a recent signal.
+99-110, "President's Year 2000 Council", arrived dated 2026-09-07: before we
+read it, therefore plausible, and sat in the corpus counted as a recent signal.
 
 What gives it away is that the SEC numbers every press release YEAR-NUMBER and
 puts that number in the URL, so the release carries its own true year.
@@ -51,7 +51,7 @@ def _sec_release_year(url: str) -> int | None:
 def _sec_year_disagrees(url: str, published_at: datetime) -> bool:
     release_year = _sec_release_year(url)
     if release_year is None:
-        # No number means no opinion. This rule may only reject on evidence —
+        # No number means no opinion. This rule may only reject on evidence:
         # absence of evidence must never start discarding real articles.
         return False
     return release_year != published_at.year

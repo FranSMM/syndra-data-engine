@@ -1,5 +1,5 @@
 """
-Ticker Backfill Script — re-extracts tickers with FlashText for Silver articles.
+Ticker Backfill Script: re-extracts tickers with FlashText for Silver articles.
 
 Reads title from Silver (Article) and description from Bronze (RawArticle
 payload). Writes ONLY to Silver. Bronze remains immutable.
@@ -14,7 +14,7 @@ Two modes:
 
 `--all` exists because the default filter cannot repair a *wrong* attribution,
 only a missing one. After INC-021 the stored tickers were not absent but
-incorrect — "U.S." had been yielding U and S, "A colleague" yielding Agilent —
+incorrect: "U.S." had been yielding U and S, "A colleague" yielding Agilent,
 and those rows have non-empty arrays, so the default mode skips precisely the
 ones that need fixing.
 
@@ -55,7 +55,7 @@ async def run_backfill(process_all: bool = False):
         articles = result.unique().scalars().all()
 
         mode = "ALL articles (overwriting)" if process_all else "articles with no tickers"
-        logger.info(f"Selected {len(articles)} Silver articles — mode: {mode}.")
+        logger.info(f"Selected {len(articles)} Silver articles: mode: {mode}.")
 
         unchanged = changed = gained = cleared = 0
         for i, article in enumerate(articles):

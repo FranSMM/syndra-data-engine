@@ -4,7 +4,7 @@ stage durations from Prefect's own database instead of counting them in process.
 
 Same approach as test_domain_metrics.py: the session factory is stubbed, so the
 statements are built but never executed. That covers the translation from rows
-to gauge samples, but deliberately not the SQL itself — these statements are
+to gauge samples, but deliberately not the SQL itself: these statements are
 raw text() against tables Syndra does not own, so nothing here would notice a
 typo in them. The statements are checked against the real schema separately,
 before deploying.
@@ -41,7 +41,7 @@ class _StubResult:
 class _StubSession:
     """
     Answers execute() with the queued payloads in order: stages, flow states,
-    then the scalar last-run timestamp — which is the exact order _read_etl
+    then the scalar last-run timestamp, which is the exact order _read_etl
     issues them in.
     """
 
@@ -178,7 +178,7 @@ async def test_second_refresh_within_the_ttl_hits_no_database():
 async def test_prefect_being_unreachable_does_not_propagate():
     """
     Prefect's database is a second, independent dependency of /metrics. It going
-    down must cost its own gauges and nothing else — not the HTTP histograms,
+    down must cost its own gauges and nothing else: not the HTTP histograms,
     and not the Syndra domain gauges that live in a different database.
     """
 
@@ -200,7 +200,7 @@ async def test_stage_names_are_normalised_in_sql_not_in_python():
     Prefect names every task run "<stage>-<hash>", so the hash has to be
     stripped before the name becomes a label or each run creates a new series.
     That stripping happens in the query, which means no amount of stubbed rows
-    can prove it is there — this asserts on the statement itself.
+    can prove it is there: this asserts on the statement itself.
     """
     sql = str(metrics._etl_stage_statement())
 

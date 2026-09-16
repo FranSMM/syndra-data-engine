@@ -170,7 +170,7 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
     if len(signals) < limit:
         if metrics["total_evaluated"] < fetch_size:
             logger.info(
-                f"Short result for {ticker_upper}: {len(signals)}/{limit} signals — "
+                f"Short result for {ticker_upper}: {len(signals)}/{limit} signals, "
                 f"Silver Layer only holds {metrics['total_evaluated']} matching articles."
             )
         else:

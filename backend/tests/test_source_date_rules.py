@@ -4,7 +4,7 @@ Unit tests for the per-source publication-date rules.
 These exist because the generic guard in app/core/dates.py cannot see one real
 failure. The SEC's newsroom feed carries 1990s press releases stamped with the
 current year. Two of them claimed a date months after we ingested them and were
-caught. A third — release 99-110, "President's Year 2000 Council" — was dated
+caught. A third: release 99-110, "President's Year 2000 Council", was dated
 2026-09-07, which is before we read it and therefore perfectly plausible. It sat
 in the corpus counted as a recent signal.
 

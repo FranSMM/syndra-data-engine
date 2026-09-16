@@ -24,7 +24,7 @@ class TickerExtractor:
         return cls._instance
 
     # A bare symbol this short is not evidence of a company being mentioned.
-    # "A" is Agilent, "S" is SentinelOne, "P" is Everpure, "AI" is C3.ai — and
+    # "A" is Agilent, "S" is SentinelOne, "P" is Everpure, "AI" is C3.ai, and
     # in ordinary financial prose those characters come from "A colleague",
     # "U.S.", "S&P" and "AI chips". Measured over the corpus, 1-2 character
     # symbols produced 29.4% of all ticker attachments, and 7,451 articles
@@ -34,9 +34,9 @@ class TickerExtractor:
 
     # Aliases that name something other than the company. Each was found in the
     # data, not guessed.
-    #   bullish/bearish — BLSH ships "Bullish" and matched every "analysts turn
+    #   bullish/bearish: BLSH ships "Bullish" and matched every "analysts turn
     #     bullish" headline.
-    #   dow, nasdaq     — the index, not Dow Inc. or Nasdaq Inc. Both are named
+    #   dow, nasdaq    : the index, not Dow Inc. or Nasdaq Inc. Both are named
     #     far more often as market barometers than as listed companies:
     #     "Dow hits record, S&P 500, Nasdaq slip".
     STOP_ALIASES = {"bullish", "bearish", "dow", "nasdaq"}
@@ -84,7 +84,7 @@ class TickerExtractor:
             # matches keywords exactly, so that alias never fires on the far
             # more common "Agilent Technologies beat expectations". 2,997
             # tickers had *every* alias ending in punctuation, and 69 of those
-            # are 1-2 character symbols — which, with the bare symbol withheld
+            # are 1-2 character symbols, which, with the bare symbol withheld
             # above, would make Altria, Zoom, DuPont and Agilent unfindable
             # altogether. Registering the trimmed form as well fixes that and
             # adds ~8,300 usable aliases across the dictionary.

@@ -88,7 +88,7 @@ if series:
 # limit deletes the earliest history, which is the history worth keeping.
 if sps:
     # Measured on 16/09/2026: 24.7MB/day of TSDB blocks against 16.09M
-    # samples/day is 1.53 bytes per sample. Left at 1.75 deliberately — this
+    # samples/day is 1.53 bytes per sample. Left at 1.75 deliberately: this
     # projection guards a disk, so erring high warns early, and the alternative
     # errs late. Do not "correct" it downwards without a reason.
     bytes_per_sample = 1.75
@@ -172,7 +172,7 @@ if warnings:
     for w in warnings:
         print("  - %s" % w)
     # Non-zero on warnings, so this can be dropped into cron or CI unchanged.
-    # `make obs` swallows it deliberately — see the comment on that target.
+    # `make obs` swallows it deliberately: see the comment on that target.
 else:
     print("Todo correcto.")
 print("=" * 52)

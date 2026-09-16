@@ -7,7 +7,7 @@ ValidationError and moved on. Standards-compliant feeds therefore produced zero
 articles while the pipeline reported success. Yahoo Finance was the only source
 that ever worked, and only because it emits ISO 8601 instead.
 
-No running stack needed — this is pure string handling plus the real schema.
+No running stack needed: this is pure string handling plus the real schema.
 """
 from datetime import timezone
 
@@ -65,8 +65,8 @@ def test_offset_is_preserved_not_invented():
 
 def test_missing_timezone_is_assumed_utc():
     """
-    RFC 822 allows omitting the offset. Assuming UTC is a deliberate choice —
-    documented in normalise_pub_date — because the alternative is discarding
+    RFC 822 allows omitting the offset. Assuming UTC is a deliberate choice:
+    documented in normalise_pub_date, because the alternative is discarding
     the item, and the storage layer treats timestamps as naive UTC anyway.
     """
     art = _build("Wed, 12 Aug 2026 19:36:21")

@@ -3,8 +3,8 @@
 # Immutable, selective deployment to the production VPS.
 #
 # Images are tagged with the short git SHA of the commit that produced them,
-# never only with :latest. A mutable tag cannot be rolled back to — there is
-# only ever one version behind it — which made the "100% Immutable
+# never only with :latest. A mutable tag cannot be rolled back to, there is
+# only ever one version behind it, which made the "100% Immutable
 # Infrastructure" claim in the project rules untrue in practice. The VPS .env
 # records which tag each image is pinned to, so returning to a previous build
 # is one variable and one `up -d`, with no rebuild.
@@ -139,7 +139,7 @@ if [ "$BUILD_ETL" = true ]; then
     docker build -t "$REGISTRY/syndra-etl:$GIT_SHA" -t "$REGISTRY/syndra-etl:latest" ./backend
     ETL_TAG="$GIT_SHA"
 else
-    echo "   backend/ unchanged since $DEPLOYED_ETL — skipping build"
+    echo "   backend/ unchanged since $DEPLOYED_ETL: skipping build"
     ETL_TAG="$DEPLOYED_ETL"
 fi
 
@@ -147,7 +147,7 @@ if [ "$BUILD_DEMO" = true ]; then
     docker build -t "$REGISTRY/syndra-demo:$GIT_SHA" -t "$REGISTRY/syndra-demo:latest" ./demo
     DEMO_TAG="$GIT_SHA"
 else
-    echo "   demo/ unchanged since $DEPLOYED_DEMO — skipping build"
+    echo "   demo/ unchanged since $DEPLOYED_DEMO: skipping build"
     DEMO_TAG="$DEPLOYED_DEMO"
 fi
 
@@ -161,7 +161,7 @@ if [ "$BUILD_DEMO" = true ]; then
     docker push "$REGISTRY/syndra-demo:latest"
 fi
 if [ "$BUILD_ETL" = false ] && [ "$BUILD_DEMO" = false ]; then
-    echo "   Nothing rebuilt — only infrastructure files will be synced."
+    echo "   Nothing rebuilt: only infrastructure files will be synced."
 fi
 
 # Caddy is the shared ingress: a malformed Caddyfile takes the API down along
@@ -179,7 +179,7 @@ docker run --rm -i caddy:2-alpine \
 # Prometheus refuses to start on a malformed config and, unlike Caddy, it fails
 # alone and quietly: the API keeps serving while metrics collection is simply
 # gone, and the gap only becomes visible when the graph is needed. Checked with
-# promtool from the exact image production runs — read out of the compose file
+# promtool from the exact image production runs: read out of the compose file
 # rather than repeated here, so the two cannot drift apart.
 PROM_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' ./infra/docker-compose.prod.yml | head -1)
 if [ -z "$PROM_IMAGE" ]; then
@@ -213,7 +213,7 @@ remote "cd '$DEPLOY_DIR' && docker compose pull && docker compose up -d --remove
 # Both Caddy and Prometheus read their configuration from a bind mount, and a
 # bind mount is invisible to `docker compose up -d`: the file on disk changes,
 # nothing about the container definition does, so the container is left running
-# whatever it parsed at boot. This is not hypothetical — the 403 on /metrics was
+# whatever it parsed at boot. This is not hypothetical: the 403 on /metrics was
 # written, validated, shipped and silently not applied, and the endpoint served
 # 200 to the public internet until Caddy was reloaded by hand.
 #
@@ -221,7 +221,7 @@ remote "cd '$DEPLOY_DIR' && docker compose pull && docker compose up -d --remove
 # nothing: it swaps the config with no dropped connections.
 echo "-- Reloading Caddy (bind-mounted config is not picked up by up -d)..."
 remote "cd '$DEPLOY_DIR' && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile" \
-    || { echo "   Caddy reload FAILED — it is still serving the previous config."; exit 1; }
+    || { echo "   Caddy reload FAILED: it is still serving the previous config."; exit 1; }
 
 # Prometheus has no graceful reload without --web.enable-lifecycle, which would
 # add a mutating admin endpoint for the sake of a config that changes twice a
@@ -229,7 +229,7 @@ remote "cd '$DEPLOY_DIR' && docker compose exec -T caddy caddy reload --config /
 # volume and the WAL survives. Conditional, so ordinary deploys leave the series
 # unbroken.
 if [ "$PROM_CONF_CHANGED" = true ]; then
-    echo "-- prometheus.yml changed — restarting Prometheus..."
+    echo "-- prometheus.yml changed: restarting Prometheus..."
     remote "cd '$DEPLOY_DIR' && docker compose restart prometheus"
 fi
 

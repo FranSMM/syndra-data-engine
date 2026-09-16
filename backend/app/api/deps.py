@@ -23,7 +23,7 @@ RATE_LIMIT_WINDOW_SECONDS = 60  # 1-minute sliding window
 
 # Counter increment + TTL setup must happen in a single atomic step. Issuing
 # INCR and EXPIRE as separate round-trips leaves a window where a crash (or a
-# connection drop) between the two orphans the key with no TTL — Redis keeps it
+# connection drop) between the two orphans the key with no TTL: Redis keeps it
 # forever and that client stays permanently at HTTP 429.
 # Lua scripts run atomically inside Redis, which closes that window and collapses
 # the three round-trips (INCR + EXPIRE + TTL) into one.

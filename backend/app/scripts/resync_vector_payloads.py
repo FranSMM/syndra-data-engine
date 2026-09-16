@@ -3,8 +3,8 @@ Re-sync Qdrant payloads with the Silver Layer.
 
 `backfill_vectors` is incremental by design: it skips anything already flagged
 `is_vectorized`, so it cannot repair a point whose payload has gone stale. After
-the ticker extraction was corrected (INC-021) the two stores disagreed —
-Postgres had 0 articles tagged `AI`, Qdrant still had 1,145 — which meant
+the ticker extraction was corrected (INC-021) the two stores disagreed:
+Postgres had 0 articles tagged `AI`, Qdrant still had 1,145, which meant
 /sentiment/{ticker} and /search/semantic?ticker= returned contradictory answers
 for the same symbol.
 
@@ -12,8 +12,8 @@ Only the payload is rewritten. The vectors are embeddings of the title and
 description, neither of which changed, so re-encoding 60k articles on CPU would
 cost hours and produce identical vectors.
 
-Point IDs are recomputed the same way backfill_vectors derives them —
-uuid5(NAMESPACE_DNS, raw_article.url) — so this stays in step with it.
+Point IDs are recomputed the same way backfill_vectors derives them:
+uuid5(NAMESPACE_DNS, raw_article.url), so this stays in step with it.
 
 Usage:
     docker compose exec api python -m app.scripts.resync_vector_payloads
@@ -36,8 +36,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Qdrant applies one payload to a list of point IDs per call, so articles are
-# grouped by their ticker set. Most share one — the empty set alone covers
-# roughly half the corpus — which turns ~60k calls into a few thousand.
+# grouped by their ticker set. Most share one: the empty set alone covers
+# roughly half the corpus, which turns ~60k calls into a few thousand.
 MAX_IDS_PER_CALL = 500
 
 
@@ -61,7 +61,7 @@ async def run_resync(dry_run: bool = False):
         top = sorted(by_tickers.items(), key=lambda kv: -len(kv[1]))[:8]
         for key, ids in top:
             logger.info(f"  {len(ids):>6} points -> {list(key)[:6]}")
-        logger.info("Dry run — nothing written.")
+        logger.info("Dry run: nothing written.")
         return
 
     calls = points = 0
