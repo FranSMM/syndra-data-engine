@@ -13,9 +13,13 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Third-party images are pinned to an exact version and its digest. A floating
+# tag like postgres:15-alpine moved on its own during the 28/09/2026 deploy,
+# and prefect:3-latest could migrate prefect_db under the ETL metrics. To
+# upgrade, change the line on purpose: tag for humans, digest for Docker.
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.19-alpine3.24@sha256:f7d23353e1b15400d22ebe31189f4d314b87a4c129cc400c8c2d8d4ca127bf81
     container_name: syndra_postgres
     logging: *default-logging
     ports:
@@ -37,7 +41,7 @@ services:
       retries: 5
 
   qdrant:
-    image: qdrant/qdrant:v1.17.0
+    image: qdrant/qdrant:v1.17.0@sha256:f1c7272cdac52b38c1a0e89313922d940ba50afd90d593a1605dbbc214e66ffb
     container_name: syndra_qdrant
     logging: *default-logging
     ports:
@@ -49,7 +53,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.11-alpine3.21@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     container_name: syndra_redis
     logging: *default-logging
     ports:
@@ -117,7 +121,7 @@ services:
           memory: 1.25G
 
   prefect_server:
-    image: prefecthq/prefect:3-latest
+    image: prefecthq/prefect:3.8.7-python3.12@sha256:f15a7bda40608ee890ff97e963ec3403dc25d633810a4ef1fff93ff303f4ef5f
     container_name: syndra_prefect_server
     logging: *default-logging
     command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
@@ -203,7 +207,7 @@ services:
   cadvisor:
     # gcr.io, not google/cadvisor on Docker Hub: that mirror stopped at v0.33.0
     # in 2019 and is not the same project any more.
-    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    image: gcr.io/cadvisor/cadvisor:v0.55.1@sha256:3de2bd5203120b866d74a9b283b2ffb8ec382fbf9dc321814700c6ea6f44ec57
     container_name: syndra_cadvisor
     logging: *default-logging
     command:
@@ -250,7 +254,7 @@ services:
   # Host-level context: memory pressure, disk, load. Cheap, and it is what
   # explains *why* a container behaved the way cAdvisor says it did.
   node_exporter:
-    image: prom/node-exporter:v1.12.1
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
     container_name: syndra_node_exporter
     logging: *default-logging
     command:
@@ -274,7 +278,7 @@ services:
           memory: 128M
 
   prometheus:
-    image: prom/prometheus:v3.14.0
+    image: prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0
     container_name: syndra_prometheus
     logging: *default-logging
     # Bound to loopback, not to 0.0.0.0. Prometheus ships no authentication of
@@ -328,7 +332,7 @@ services:
     # there is something to see.
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
     container_name: syndra_caddy
     logging: *default-logging
     ports:

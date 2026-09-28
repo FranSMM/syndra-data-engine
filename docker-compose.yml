@@ -1,8 +1,12 @@
 name: syndra-data-engine
 
+# Third-party images are pinned to an exact version and its digest. A floating
+# tag like postgres:15-alpine moved on its own during the 28/09/2026 deploy,
+# and prefect:3-latest could migrate prefect_db under the ETL metrics. To
+# upgrade, change the line on purpose: tag for humans, digest for Docker.
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.19-alpine3.24@sha256:f7d23353e1b15400d22ebe31189f4d314b87a4c129cc400c8c2d8d4ca127bf81
     container_name: syndra_postgres
     restart: unless-stopped
     volumes:
@@ -20,7 +24,7 @@ services:
       retries: 5
 
   qdrant:
-    image: qdrant/qdrant:v1.17.0
+    image: qdrant/qdrant:v1.17.0@sha256:f1c7272cdac52b38c1a0e89313922d940ba50afd90d593a1605dbbc214e66ffb
     container_name: syndra_qdrant
     restart: unless-stopped
     ports:
@@ -30,7 +34,7 @@ services:
       - ./data/qdrant:/qdrant/storage
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.11-alpine3.21@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     container_name: syndra_redis
     restart: unless-stopped
     ports:
@@ -78,7 +82,7 @@ services:
         condition: service_started
 
   prefect_server:
-    image: prefecthq/prefect:3-latest
+    image: prefecthq/prefect:3.8.7-python3.12@sha256:f15a7bda40608ee890ff97e963ec3403dc25d633810a4ef1fff93ff303f4ef5f
     container_name: syndra_prefect_server
     command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200"]
     env_file:

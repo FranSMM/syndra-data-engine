@@ -1,7 +1,7 @@
 [
   {
     "name": "global_finance_rss",
-    "url": "https://finance.yahoo.com/news/rssindex",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC,%5EDJI,%5EIXIC&region=US&lang=en-US",
     "source_type": "rss_feed",
     "enabled": true
   },
