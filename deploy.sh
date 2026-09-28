@@ -14,6 +14,9 @@
 # rebuilding and re-pushing it to deploy a demo-only change cost minutes of
 # export, unpack and manifest checks for no benefit.
 #
+# Everything deployed comes from HEAD on main, extracted with git archive.
+# Uncommitted changes are listed and left out, never built.
+#
 # Usage:
 #   ./deploy.sh                     Build only what changed, deploy
 #   ./deploy.sh --all               Force a rebuild of both images
@@ -59,7 +62,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --all)      FORCE_ALL=true ;;
         --rollback) ROLLBACK_SPEC="$2"; shift ;;
-        -h|--help)  sed -n '3,22p' "$0"; exit 0 ;;
+        -h|--help)  sed -n '3,25p' "$0"; exit 0 ;;
         *)          echo "Unknown argument: $1"; exit 1 ;;
     esac
     shift
@@ -101,12 +104,33 @@ if [ -n "$ROLLBACK_SPEC" ]; then
 fi
 
 # ------------------------------------------------------------------- deploy --
+# The image tag is a commit, so that commit must be one that lives on main.
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BRANCH" != "main" ]; then
+    echo "Error: on '$BRANCH'. Deploy only from main."
+    exit 1
+fi
+
 if [ -n "$(git log origin/main..HEAD 2>/dev/null)" ]; then
     echo "Error: you have unpushed commits. Run 'git push' first."
     exit 1
 fi
 
 GIT_SHA=$(git rev-parse --short HEAD)
+
+# Images and infra config come from the commit, never from the working tree:
+# `docker build ./backend` copies whatever is on disk, so uncommitted edits used
+# to ship under a SHA that does not contain them.
+SRC_DIR=$(mktemp -d)
+trap 'rm -rf "$SRC_DIR"' EXIT
+git archive HEAD | tar -x -C "$SRC_DIR"
+INFRA="$SRC_DIR/infra"
+
+UNCOMMITTED=$(git status --porcelain -- backend demo infra)
+if [ -n "$UNCOMMITTED" ]; then
+    echo "-- Not deploying $(printf '%s\n' "$UNCOMMITTED" | wc -l) uncommitted change(s):"
+    printf '%s\n' "$UNCOMMITTED" | head -10 | sed 's/^/     /'
+fi
 
 DEPLOYED_ETL=$(read_remote_tag ETL_TAG)
 DEPLOYED_DEMO=$(read_remote_tag DEMO_TAG)
@@ -136,7 +160,7 @@ fi
 
 echo "-- [1/5] Building images (HEAD is $GIT_SHA)..."
 if [ "$BUILD_ETL" = true ]; then
-    docker build -t "$REGISTRY/syndra-etl:$GIT_SHA" -t "$REGISTRY/syndra-etl:latest" ./backend
+    docker build -t "$REGISTRY/syndra-etl:$GIT_SHA" -t "$REGISTRY/syndra-etl:latest" "$SRC_DIR/backend"
     ETL_TAG="$GIT_SHA"
 else
     echo "   backend/ unchanged since $DEPLOYED_ETL: skipping build"
@@ -144,7 +168,7 @@ else
 fi
 
 if [ "$BUILD_DEMO" = true ]; then
-    docker build -t "$REGISTRY/syndra-demo:$GIT_SHA" -t "$REGISTRY/syndra-demo:latest" ./demo
+    docker build -t "$REGISTRY/syndra-demo:$GIT_SHA" -t "$REGISTRY/syndra-demo:latest" "$SRC_DIR/demo"
     DEMO_TAG="$GIT_SHA"
 else
     echo "   demo/ unchanged since $DEPLOYED_DEMO: skipping build"
@@ -174,34 +198,34 @@ fi
 echo "-- [3/5] Validating infrastructure configuration..."
 docker run --rm -i caddy:2-alpine \
     sh -c 'cat > /tmp/Caddyfile && caddy validate --adapter caddyfile --config /tmp/Caddyfile' \
-    < ./infra/Caddyfile
+    < "$INFRA/Caddyfile"
 
 # Prometheus refuses to start on a malformed config and, unlike Caddy, it fails
 # alone and quietly: the API keeps serving while metrics collection is simply
 # gone, and the gap only becomes visible when the graph is needed. Checked with
 # promtool from the exact image production runs: read out of the compose file
 # rather than repeated here, so the two cannot drift apart.
-PROM_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' ./infra/docker-compose.prod.yml | head -1)
+PROM_IMAGE=$(grep -oE 'prom/prometheus:[^[:space:]]+' "$INFRA/docker-compose.prod.yml" | head -1)
 if [ -z "$PROM_IMAGE" ]; then
     echo "   Could not find the prom/prometheus image in infra/docker-compose.prod.yml"
     exit 1
 fi
 docker run --rm -i --entrypoint sh "$PROM_IMAGE" \
     -c 'cat > /tmp/prometheus.yml && promtool check config /tmp/prometheus.yml' \
-    < ./infra/prometheus.yml
+    < "$INFRA/prometheus.yml"
 
 echo "-- [4/5] Syncing infrastructure to VPS..."
-scp ./infra/docker-compose.prod.yml "$VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml"
-scp ./infra/Caddyfile "$VPS_USER@$VPS_IP:$DEPLOY_DIR/Caddyfile"
+scp "$INFRA/docker-compose.prod.yml" "$VPS_USER@$VPS_IP:$DEPLOY_DIR/docker-compose.yml"
+scp "$INFRA/Caddyfile" "$VPS_USER@$VPS_IP:$DEPLOY_DIR/Caddyfile"
 
 # Whether prometheus.yml changed decides whether Prometheus gets restarted
 # below, so the comparison has to happen before the file is overwritten.
 PROM_CONF_CHANGED=true
 if [ "$(remote "md5sum '$DEPLOY_DIR/prometheus.yml' 2>/dev/null | cut -d' ' -f1")" \
-   = "$(md5sum ./infra/prometheus.yml | cut -d' ' -f1)" ]; then
+   = "$(md5sum "$INFRA/prometheus.yml" | cut -d' ' -f1)" ]; then
     PROM_CONF_CHANGED=false
 fi
-scp ./infra/prometheus.yml "$VPS_USER@$VPS_IP:$DEPLOY_DIR/prometheus.yml"
+scp "$INFRA/prometheus.yml" "$VPS_USER@$VPS_IP:$DEPLOY_DIR/prometheus.yml"
 
 # Pin before pulling: compose resolves the image tags from these variables.
 write_remote_tag ETL_TAG "$ETL_TAG"
