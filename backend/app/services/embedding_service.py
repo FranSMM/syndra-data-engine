@@ -17,7 +17,7 @@ class EmbeddingService:
             embedding = self.model.encode(text)
             logger.info(f"Generated embedding for text: {text}")
             return embedding
-        except Exception as e:
+        except Exception:
             logger.error(f"Failed to generate embedding for text: {text}")
             raise
 
@@ -27,8 +27,8 @@ class EmbeddingService:
             embeddings = self.model.encode(texts, convert_to_numpy=True)
             logger.info(f"Generated embeddings for {len(texts)} texts")
             return embeddings.tolist()
-        except Exception as e:
-            logger.error(f"Failed to generate embeddings for batch of texts")
+        except Exception:
+            logger.error("Failed to generate embeddings for batch of texts")
             raise
 
 # Lazy-loaded singleton: model is NOT loaded at import time.

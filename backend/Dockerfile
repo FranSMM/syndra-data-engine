@@ -1,4 +1,6 @@
-FROM python:3.11-slim
+# Base and every package pinned: a rebuild must produce the same image, not the
+# newest versions of the day. To upgrade, regenerate constraints.txt on purpose.
+FROM python:3.11.16-slim@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -6,11 +8,11 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /code
 
 # Copy requirements to cache this layer
-COPY requirements.txt /code/
+COPY requirements.txt constraints.txt /code/
 
 # Install torch (CPU version for the VPS) and other dependencies
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install torch==2.14.0+cpu --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
 # Define HuggingFace and pre-download FinBERT model
 ENV HF_HOME=/models_cache

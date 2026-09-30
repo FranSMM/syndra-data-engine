@@ -69,11 +69,9 @@ async def fetch_recent_signals(db: AsyncSession, ticker: str, limit: int = 20, d
         
         # Only apply deduplication if deduplicate is True
         if deduplicate:
-            # Why a single reason per article instead of counting inside the loop:
-            # one article is compared against every previously kept article, so a
-            # headline near-matching three earlier ones used to add three counts to
-            # the metric. The article was still kept exactly once. We record the
-            # first reason it survived and count it once, after the scan.
+            # One reason per article, counted once after the scan: an article is
+            # compared against every kept one, and counting inside the loop would
+            # add a count per near-match for an article that is kept only once.
             saved_reason = None
 
             for idx, (seen_title, seen_label, seen_time) in enumerate(seen_articles):

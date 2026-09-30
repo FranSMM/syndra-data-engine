@@ -2,15 +2,15 @@ include .env
 export
 
 # ==============================================================================
-# Infrastructure (Docker)
+# Infrastructure (Docker) [[[ DEV TESTING ]]]
 # ==============================================================================
-up:
+up: check-mounts
 	docker compose up -d
 
 down:
 	docker compose down
 
-build:
+build: check-mounts
 	docker compose up -d --build
 
 bash:
@@ -49,16 +49,8 @@ run-etl:
 # ==============================================================================
 # Production VPS Port-Forwarding (SSH Tunneling)
 # ==============================================================================
-# El usuario y la IP salen del .env, que esta en .gitignore. Un Makefile se
-# commitea; un .env no. Mismo sitio del que los lee deploy.sh, asi que no hay
-# dos copias que puedan divergir.
-#
-# Se leen solo esas dos lineas en vez de hacer `include .env`: ese fichero lleva
-# contraseñas y URLs con '=' dentro, y make intentaria interpretarlo entero.
-VPS_USER := $(shell grep -E '^VPS_USER=' .env 2>/dev/null | tail -1 | cut -d= -f2-)
-VPS_IP   := $(shell grep -E '^VPS_IP=' .env 2>/dev/null | tail -1 | cut -d= -f2-)
-
-# Sin esto, un .env ausente produce `ssh @` y un error incomprensible.
+# VPS_USER y VPS_IP llegan del .env por el include de la primera linea.
+# Sin este guard, un .env incompleto produce `ssh @` y un error incomprensible.
 _require-vps:
 	@test -n "$(VPS_IP)" -a -n "$(VPS_USER)" || { \
 		echo "Faltan VPS_USER o VPS_IP en el .env de la raiz del repo."; exit 1; }
@@ -94,20 +86,10 @@ obs-range:
 # ==============================================================================
 # Desarrollo local y pruebas
 # ==============================================================================
-# Comprueba que existan las rutas que el compose monta. Docker no falla cuando
-# el origen de un bind mount no existe: crea un directorio vacio ahi y luego el
-# contenedor no arranca, con un exit 127 que significa "comando no encontrado"
-# y te manda a buscar un problema que no esta. Cuatro semanas costo la ultima vez.
+# Si el origen de un bind mount no existe, Docker crea un directorio vacio en su
+# lugar y el contenedor no arranca, con un exit 127 enganoso. Lo usan up y build.
 check-mounts:
 	@bash ./check-compose-mounts.sh
-
-# Levanta el stack local. La comprobacion va antes a proposito.
-dev: check-mounts
-	@docker compose up -d postgres redis qdrant api
-	@docker compose ps
-
-dev-down:
-	@docker compose down
 
 # Suite de integracion (test_security.py) contra un stack aislado y desechable.
 #

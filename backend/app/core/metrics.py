@@ -1,32 +1,16 @@
 """
-Prometheus domain collectors.
+Prometheus domain collectors. HTTP metrics come from the instrumentator; these
+are the Syndra-specific facts no library can guess.
 
-The HTTP metrics (latency, throughput, error rate) come for free from
-prometheus-fastapi-instrumentator. What lives here is the half no library can
-guess: the facts that make Syndra Syndra, how fresh each source is, how big
-the corpus has grown, whether enrichment is keeping up.
+Three rules for anyone editing this file:
 
-Two design points worth keeping in mind before editing this file.
-
-**These gauges are derived, not counted.** Every number below is the answer to a
-SQL query, not a counter incremented as the pipeline runs. In-process counters
-reset when the container restarts and drift from the database the moment
-anything writes to Postgres from outside the API: the scheduler does exactly
-that, every hour. Deriving is what the Prometheus exporter guidelines call for
-when the backing store already holds the truth, and INC-021 is the local
-precedent for what a second copy of the truth costs.
-
-**Never label by ticker.** Sources are three; tickers are 10657. A label per
-ticker would be 10657 series per metric in the TSDB head block, which on this
-box means an OOM, not a slow dashboard.
-
-A note on the names, because the obvious ones are wrong: none of these gauges
-carries a `_total` suffix. Prometheus reserves that suffix for counters:
-monotonic, only ever increasing, and `promtool check metrics` rejects it on
-anything else ("non-counter metrics should not have _total suffix"). These are
-gauges: the corpus shrinks if rows are deleted, and pending falls back to zero
-every time the pipeline catches up. Worth getting right the first time, since a
-rename starts a fresh series and orphans everything collected before it.
+1. Gauges are derived from SQL, never counted in process. In-process counters
+   reset on restart and drift once the scheduler writes to Postgres. See
+   ADR 038 and INC-021.
+2. Never label by ticker. Three sources against 10657 tickers is the difference
+   between a dashboard and an OOM.
+3. No `_total` suffix. Prometheus reserves it for counters and promtool rejects
+   it on gauges. Renaming later orphans the collected history.
 """
 import asyncio
 import logging

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import PostgresDsn, computed_field
+from pydantic import computed_field
 from pydantic_core import MultiHostUrl
 
 # Resolved from this file's location, not from the current working directory.

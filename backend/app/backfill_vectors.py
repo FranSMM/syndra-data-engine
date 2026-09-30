@@ -61,7 +61,7 @@ async def run_backfill():
                 from app.services.embedding_service import get_embedding_engine
                 embedding_engine = get_embedding_engine()
                 model_loaded = True
-                logger.info(f"Found articles to index. Model loaded.")
+                logger.info("Found articles to index. Model loaded.")
 
             texts_to_encode = []
             points = []
@@ -101,7 +101,7 @@ async def run_backfill():
             )
 
             # Mark as vectorized in Bronze payload (the only allowed flag update)
-            for article, raw in batch:
+            for _, raw in batch:
                 updated_payload = dict(raw.payload)
                 updated_payload["is_vectorized"] = True
                 raw.payload = updated_payload

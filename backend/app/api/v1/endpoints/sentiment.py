@@ -3,7 +3,6 @@ from app.schemas.sentiment import TickerSentimentResponse
 from app.services.sentiment_service import fetch_recent_signals
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-from typing import Any
 
 from app.api.deps import get_db, verify_api_key
 from app.models.api_key import APIKey

@@ -4,7 +4,7 @@ from email.utils import parsedate_to_datetime
 import scrapy
 from pydantic import ValidationError
 
-from app.schemas.article_schema import ScrapedArticle, ArticlePayload
+from app.schemas.article_schema import ScrapedArticle
 
 
 def normalise_pub_date(raw: str) -> str:

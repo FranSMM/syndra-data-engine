@@ -2,7 +2,7 @@
 # on 3.12 in Streamlit Cloud for months (its runtime.txt says so), and moving it
 # in-house is not the moment to also change the interpreter under it. The
 # divergence is deliberate and costs nothing: the two services share no code.
-FROM python:3.12-slim
+FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -10,8 +10,9 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Requirements first so the dependency layer caches independently of the app.
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+# constraints.txt pins the transitive packages that requirements.txt leaves open.
+COPY requirements.txt constraints.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
 # The app resolves assets relative to the working directory
 # (st.image("assets/...")), so that layout has to survive into the image.

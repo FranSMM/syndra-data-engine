@@ -52,7 +52,7 @@ def update_tickers():
         existing = {}
 
     added = 0
-    for key, data in sec_data.items():
+    for data in sec_data.values():
         ticker = data['ticker'].upper()
         title = data['title']
         

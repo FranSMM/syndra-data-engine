@@ -4,7 +4,6 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
-from app.db.session import AsyncSessionLocal
 from app.models.api_key import APIKey
 from app.core.security import get_api_key_hash
 from app.core.redis import REDIS_URL
@@ -23,7 +22,6 @@ VALID_HASH = get_api_key_hash(VALID_RAW_KEY)
 EXPIRED_RAW_KEY = "syndra_test_expired_123"
 EXPIRED_HASH = get_api_key_hash(EXPIRED_RAW_KEY)
 
-import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from app.core.config import settings

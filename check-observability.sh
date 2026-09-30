@@ -35,8 +35,8 @@ fi
 # is deliberately not reachable from anywhere else. Passing the window through
 # the environment rather than interpolating it into the script keeps the quoting
 # survivable across ssh.
-ssh "$VPS_USER@$VPS_IP" "WINDOW='$WINDOW' python3 -" <<'REMOTE'
-import json, os, time, urllib.parse, urllib.request
+ssh "$VPS_USER@$VPS_IP" "WINDOW='$WINDOW' DEPLOY_DIR='$DEPLOY_DIR' python3 -" <<'REMOTE'
+import json, os, re, socket, ssl, time, urllib.parse, urllib.request
 
 WINDOW = os.environ.get("WINDOW", "5d")
 BASE = "http://127.0.0.1:9090/api/v1/"
@@ -153,18 +153,52 @@ for r in q("syndra_etl_flow_runs"):
     print("  flow runs 24h: %s=%s" % (r["metric"]["state"], r["value"][1]))
 
 print("\n=== RECURSOS (lo que pide el Cap. 4) ===")
+# A recreated container is a new cAdvisor series (the cgroup id changes), so a
+# window spanning a deploy holds several. Aggregate them or only one is read.
 for name in ("syndra_scheduler", "syndra_api"):
-    peak = v('max_over_time(container_memory_working_set_bytes{name="%s"}[%s])' % (name, WINDOW))
-    avg = v('avg_over_time(container_memory_working_set_bytes{name="%s"}[%s])' % (name, WINDOW))
+    sel = 'container_memory_working_set_bytes{name="%s"}[%s]' % (name, WINDOW)
+    peak = v("max(max_over_time(%s))" % sel)
+    avg = v("sum(sum_over_time(%s)) / sum(count_over_time(%s))" % (sel, sel))
     if peak:
         print("  %-18s pico %7.1f MB   media %7.1f MB" % (name, peak / 1e6, avg / 1e6))
 
 # cAdvisor lives pinned at its ceiling by design: almost all of its resident set
 # is reclaimable kernel cache. anon is the only number that would signal a leak.
-anon = v('container_memory_rss{name="syndra_cadvisor"}')
+anon = v('max(container_memory_rss{name="syndra_cadvisor"})')
 if anon is not None:
     line("WARN" if anon > 100e6 else "PASS",
          "cadvisor anon %.1f MB (normal ~10 MB; su techo alto es cache reclamable)" % (anon / 1e6))
+
+print("\n=== CERTIFICADOS TLS DEL ORIGEN ===")
+# Read from Caddy on loopback, not through Cloudflare: the edge serves its own
+# certificate, so an expired origin one stays invisible from the browser.
+caddyfile = os.path.join(os.environ.get("DEPLOY_DIR", ""), "Caddyfile")
+try:
+    with open(caddyfile) as f:
+        sites = re.findall(r"^([a-z0-9.-]+\.[a-z]{2,})\s*\{", f.read(), re.M)
+except OSError:
+    sites = []
+if not sites:
+    line("WARN", "no se encontraron dominios en %s" % caddyfile)
+
+ctx = ssl.create_default_context()
+for site in sites:
+    try:
+        with socket.create_connection(("127.0.0.1", 443), timeout=10) as raw:
+            with ctx.wrap_socket(raw, server_hostname=site) as tls:
+                cert = tls.getpeercert()
+    except OSError as e:
+        line("WARN", "%s: certificado no valido (%s)" % (site, e))
+        continue
+    start = ssl.cert_time_to_seconds(cert["notBefore"])
+    end = ssl.cert_time_to_seconds(cert["notAfter"])
+    days_left = (end - time.time()) / 86400
+    # Caddy renews with a third of the lifetime left. Under a quarter means the
+    # renewal is overdue, whatever lifetime the CA issues.
+    if end - time.time() < (end - start) / 4:
+        line("WARN", "%s caduca en %.0f dias y no se ha renovado" % (site, days_left))
+    else:
+        line("PASS", "%-22s %.0f dias restantes" % (site, days_left))
 
 print("\n" + "=" * 52)
 if warnings:

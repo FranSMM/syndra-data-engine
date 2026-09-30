@@ -34,14 +34,14 @@ async def provision(client_name: str, trial_days: int | None = None) -> None:
 
     key_type = "TRIAL" if expires_at else "PERMANENT"
     print(f"\n ✓ {key_type} API KEY CREATED SUCCESSFULLY")
-    print(f"==========================================================")
+    print("==========================================================")
     print(f"CLIENT:     {client_name}")
     print(f"RAW KEY:    {raw_key}")
     print(f"TYPE:       {key_type}")
     if expires_at:
         print(f"EXPIRES AT: {expires_at.strftime('%Y-%m-%d %H:%M UTC')}")
-    print(f" -- This key will NOT be shown again. Store it securely. --")
-    print(f"==========================================================\n")
+    print(" -- This key will NOT be shown again. Store it securely. --")
+    print("==========================================================\n")
 
 
 if __name__ == "__main__":

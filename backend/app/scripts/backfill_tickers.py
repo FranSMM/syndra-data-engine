@@ -29,7 +29,7 @@ from sqlalchemy.orm import joinedload
 
 from app.db.session import AsyncSessionLocal
 from app.models.article import Article
-from app.models.raw_article import RawArticle
+from app.models.raw_article import RawArticle  # noqa: F401  registers the mapper Article.raw_article points to
 from app.services.ticker_extractor import TickerExtractor
 
 logging.basicConfig(level=logging.INFO)

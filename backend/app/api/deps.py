@@ -27,8 +27,8 @@ RATE_LIMIT_WINDOW_SECONDS = 60  # 1-minute sliding window
 # forever and that client stays permanently at HTTP 429.
 # Lua scripts run atomically inside Redis, which closes that window and collapses
 # the three round-trips (INCR + EXPIRE + TTL) into one.
-# The `ttl < 0` branch is self-healing: it re-arms the window on any key that was
-# already orphaned by the previous implementation.
+# The `ttl < 0` branch is self-healing: it re-arms the window on any key left
+# without a TTL.
 _RATE_LIMIT_SCRIPT = """
 local current = redis.call('INCR', KEYS[1])
 local ttl = redis.call('TTL', KEYS[1])

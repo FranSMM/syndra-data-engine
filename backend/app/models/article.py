@@ -1,11 +1,14 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import ForeignKey, String, Float, Text, func
+from sqlalchemy import ForeignKey, String, Float, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.raw_article import RawArticle
 
 
 class Article(Base):

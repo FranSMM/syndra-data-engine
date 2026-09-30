@@ -3,7 +3,6 @@ import asyncio
 import logging
 import sys
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
 from app.models import RawArticle

@@ -1,37 +1,27 @@
 """
 Per-source publication-date rules.
 
-Kept out of app/core/dates.py on purpose. That module holds rules true of any
-feed: an offset must be converted, nothing can be published after it is read,
-and stays worth trusting precisely because it knows nothing about any particular
-publisher. This module is where a rule that only applies to one source lives, so
-the coupling is visible in the import rather than buried in an `if` inside the
+Separate from app/core/dates.py, which only holds rules true of any feed and
+stays trustworthy because it knows nothing about any publisher. Source-specific
+coupling lives here, visible in an import rather than in an `if` inside the
 enrichment loop.
 
-The rule here exists because the generic guard provably cannot catch one real
-case. The SEC's newsroom feed republishes 1990s press releases stamped with the
-current year. Two arrived dated months in the future and were rejected; release
-99-110, "President's Year 2000 Council", arrived dated 2026-09-07: before we
-read it, therefore plausible, and sat in the corpus counted as a recent signal.
+The SEC republishes 1990s press releases stamped with the current year. Some
+are dated in the past, so the generic guard cannot see them; the release number
+in the URL carries the real year. See ADR 037.
 
-What gives it away is that the SEC numbers every press release YEAR-NUMBER and
-puts that number in the URL, so the release carries its own true year.
-
-Adding a source: write a checker, register it below. If this ever reaches three
-or four entries it is worth asking whether the feeds should be declaring their
-own date semantics in feeds.json instead.
+Adding a source: write a checker, register it in _RULES. Past three or four,
+reconsider and let feeds.json declare its own date semantics instead.
 """
 import re
 from datetime import datetime
 
-# Matches the release number at the start of an SEC newsroom slug: "2026-88-..."
-# or "97-114-...". Anchored to the path segment so a number appearing later in
-# the headline slug cannot be mistaken for it.
+# Release number at the start of an SEC newsroom slug: "2026-88-", "97-114-".
+# Anchored to the path segment so digits in the headline cannot match.
 _SEC_RELEASE_NUMBER = re.compile(r"/press-releases/(\d{2}|\d{4})-\d+-")
 
-# The SEC moved from two-digit to four-digit release numbering in the early
-# 2000s, so a two-digit prefix is always last century or the very start of this
-# one. 50 is a wide margin: the oldest releases in the feed are from 1993.
+# Two-digit numbering ran until the early 2000s. The oldest releases in the
+# feed are from 1993, so 50 is a wide margin.
 _TWO_DIGIT_PIVOT = 50
 
 
