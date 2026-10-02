@@ -92,7 +92,10 @@ class Settings(BaseSettings):
     def QDRANT_URL(self) -> str:
         return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
 
-    # Embedding Model Configuration
-    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    # Models pinned to a Hub commit (ADR 042); the image sets the same values via ENV.
+    FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
+    FINBERT_REVISION: str = "4556d13015211d73dccd3fdd39d39232506f3e43"
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL_REVISION: str = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 
 settings = Settings()

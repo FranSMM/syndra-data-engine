@@ -14,11 +14,21 @@ COPY requirements.txt constraints.txt /code/
 RUN pip install torch==2.14.0+cpu --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
-# Define HuggingFace and pre-download FinBERT model
-ENV HF_HOME=/models_cache
-RUN python -c "from transformers import AutoModelForSequenceClassification, AutoTokenizer; \
-    AutoModelForSequenceClassification.from_pretrained('ProsusAI/finbert'); \
-    AutoTokenizer.from_pretrained('ProsusAI/finbert')"
+# Both models baked in at pinned revisions; the app reads the same ENV (ADR 042)
+ENV HF_HOME=/models_cache \
+    FINBERT_MODEL_NAME=ProsusAI/finbert \
+    FINBERT_REVISION=4556d13015211d73dccd3fdd39d39232506f3e43 \
+    EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2 \
+    EMBEDDING_MODEL_REVISION=1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+ARG LOAD_MODELS="import os; \
+from transformers import pipeline; \
+from sentence_transformers import SentenceTransformer; \
+pipeline('sentiment-analysis', model=os.environ['FINBERT_MODEL_NAME'], tokenizer=os.environ['FINBERT_MODEL_NAME'], revision=os.environ['FINBERT_REVISION']); \
+SentenceTransformer(os.environ['EMBEDDING_MODEL_NAME'], revision=os.environ['EMBEDDING_MODEL_REVISION'], device='cpu')"
+# Download, then load again offline: a file missing at run time fails the build instead
+RUN python -c "$LOAD_MODELS" && HF_HUB_OFFLINE=1 python -c "$LOAD_MODELS"
+# No Hub access at run time
+ENV HF_HUB_OFFLINE=1
 
 # Copy code (changes here won't invalidate the dependencies/models cache)
 COPY alembic.ini /code/

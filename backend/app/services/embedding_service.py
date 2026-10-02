@@ -9,7 +9,9 @@ class EmbeddingService:
         logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL_NAME} on CPU to prevent GPU memory leaks")
 
         # Load the pre-trained model
-        self.model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME, device='cpu')
+        self.model = SentenceTransformer(
+            settings.EMBEDDING_MODEL_NAME, revision=settings.EMBEDDING_MODEL_REVISION, device='cpu'
+        )
 
     def get_embedding(self, text: str) -> list[float]:
         """Generate embedding for a given text."""

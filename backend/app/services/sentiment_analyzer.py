@@ -5,6 +5,8 @@ import logging
 import torch
 from transformers import pipeline
 
+from app.core.config import settings
+
 # STRICT CPU LIMIT: Leave 1 vCPU free for OS, Postgres, and Qdrant
 torch.set_num_threads(2)
 
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class FinancialSentimentAnalyzer:
     def __init__(self):
-        self.model_name = "ProsusAI/finbert"
+        self.model_name = settings.FINBERT_MODEL_NAME
 
         # Dynamic Device Selection: GPU for local development, CPU fallback for VPS compatibility
         # 0 = GPU, -1 = CPU
@@ -33,6 +35,7 @@ class FinancialSentimentAnalyzer:
             "sentiment-analysis",
             model=self.model_name,
             tokenizer=self.model_name,
+            revision=settings.FINBERT_REVISION,
             device=self.device,
             truncation=True,
 
