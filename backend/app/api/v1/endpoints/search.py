@@ -21,6 +21,9 @@ router = APIRouter()
 # vectorization backfill runs (hourly), so 5 minutes never serves stale data.
 SEARCH_CACHE_TTL_SECONDS = 300
 
+# Bounds the embedding work and the log line of a public search box.
+MAX_QUERY_LENGTH = 200
+
 
 def _build_cache_key(client_name: str, query: str, ticker: Optional[str], limit: int) -> str:
     """
@@ -35,7 +38,7 @@ def _build_cache_key(client_name: str, query: str, ticker: Optional[str], limit:
 
 @router.get("/semantic", response_model=List[Dict[str, Any]])
 async def semantic_search(
-    query: str = Query(..., min_length=3, description="Semantic concept to search for"),
+    query: str = Query(..., min_length=3, max_length=MAX_QUERY_LENGTH, description="Semantic concept to search for"),
     ticker: Optional[str] = Query(None, description="Filter by specific ticker"),
     limit: int = Query(default=5, ge=1, le=20, description="Maximum number of results"),
     client: APIKey = Depends(verify_api_key)
