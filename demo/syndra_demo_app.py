@@ -27,7 +27,7 @@ from streamlit.errors import StreamlitSecretNotFoundError
 # ──────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Syndra · Financial Sentiment API",
-    page_icon="📊",
+    page_icon="assets/favicon.svg",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -35,61 +35,254 @@ st.set_page_config(
 # ──────────────────────────────────────────────────────────────────────────────
 # CUSTOM CSS
 # ──────────────────────────────────────────────────────────────────────────────
+# Dark-mode steps of frontend/tokens.css; keep in sync with that file, not by eye.
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #f7eddf;
-        margin-bottom: 0.2rem;
+    :root {
+        --bg: #1e1e1e;
+        --surface: #262523;
+        --border: #3a3835;
+        --border-strong: #4a4844;
+        --fg: #f7eddf;
+        --fg-muted: #d5cabb;
+        --fg-faint: #a49b8e;
+        --warm-text: #deaa64;
+        --warm-text-hover: #ecc188;
+        --pos: #5cc98a;
+        --neu: #928f87;
+        --neg: #e8604a;
+        --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
     }
-    .sub-header {
-        font-size: 1.1rem;
-        color: #a49b8e;
-        margin-bottom: 2rem;
+    .block-container, [data-testid="stMainBlockContainer"] {
+        padding-top: 2.5rem;
+        max-width: 1280px;
     }
-    .positive { color: #5cc98a; font-weight: 600; }
-    .negative { color: #e8604a; font-weight: 600; }
-    .neutral  { color: #928f87; font-weight: 600; }
-    .signal-card {
-        background: #1e1e1e;
-        border-left: 4px solid #3a3835;
-        border-top: 1px solid #262523;
-        border-right: 1px solid #262523;
-        border-bottom: 1px solid #262523;
-        border-radius: 8px;
-        padding: 18px;
-        margin-bottom: 14px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    /* Links take the warm text step and never an underline, as on the landing. */
+    .signal-card a, .sidebar-footer a {
+        color: var(--warm-text);
+        text-decoration: none;
     }
-    .signal-card.positive-border { border-left-color: #5cc98a; }
-    .signal-card.negative-border { border-left-color: #e8604a; }
-    .signal-card.neutral-border  { border-left-color: #928f87; }
-    .methodology-box {
-        background: #262523;
-        border: 1px solid #3a3835;
-        border-radius: 8px;
-        padding: 20px;
-        margin: 1.5rem 0;
-        color: #d5cabb;
-        font-size: 0.95rem;
-        line-height: 1.6;
+    .sidebar-footer a:hover {
+        color: var(--warm-text-hover);
     }
-    .methodology-box h4 {
-        margin-top: 0;
-        color: #deaa64;
+
+    /* Header */
+    .brand-header { margin-bottom: 1rem; }
+    .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--fg-faint);
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+    .brand-mark { width: 22px; height: 22px; flex: none; }
+    .brand-title {
+        color: var(--fg);
+        font-size: 2rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        margin: 0.6rem 0 0.35rem;
+    }
+    .brand-lede {
+        color: var(--fg-muted);
+        font-size: 1rem;
+        max-width: 90ch;
+    }
+    .brand-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 22px;
+        margin-top: 0.9rem;
+        color: var(--fg-faint);
+        font-size: 0.8rem;
+    }
+    .brand-meta span b { color: var(--fg-muted); font-weight: 600; }
+
+    /* Section headings replace the emoji h3 plus horizontal rule pairs. */
+    .section-head {
+        border-top: 1px solid var(--border);
+        margin: 2rem 0 1rem;
+        padding-top: 1.25rem;
+    }
+    .section-head.first { border-top: 0; margin-top: 0.75rem; padding-top: 0; }
+    .section-title {
+        color: var(--fg);
         font-size: 1.2rem;
-        margin-bottom: 12px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
     }
-    .methodology-box strong { color: #f7eddf; }
+    .section-caption {
+        color: var(--fg-faint);
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+    .section-caption code, .brand-meta code {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--fg-faint);
+        background: transparent;
+        padding: 0;
+    }
+
+    /* Sentiment colours: data only, always next to their text label. */
+    .positive { color: var(--pos); }
+    .negative { color: var(--neg); }
+    .neutral  { color: var(--neu); }
+
+    /* Signal cards */
+    .signal-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--border-strong);
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin-bottom: 10px;
+    }
+    .signal-card.positive-border { border-left-color: var(--pos); }
+    .signal-card.negative-border { border-left-color: var(--neg); }
+    .signal-card.neutral-border  { border-left-color: var(--neu); }
+    .signal-main { flex: 1; min-width: 0; }
+    .signal-card .signal-title {
+        display: block;
+        color: var(--fg);
+        font-weight: 600;
+        font-size: 1rem;
+        line-height: 1.4;
+    }
+    .signal-card a.signal-title:hover { color: var(--warm-text); }
+    .signal-meta {
+        margin-top: 6px;
+        color: var(--fg-faint);
+        font-size: 0.8rem;
+    }
+    .signal-side { text-align: right; min-width: 110px; }
+    .signal-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+    }
+    .signal-score {
+        margin-top: 4px;
+        color: var(--fg-muted);
+        font-family: var(--mono);
+        font-size: 0.85rem;
+    }
+
+    /* Metric tiles */
+    [data-testid="stMetric"] { background: var(--surface); }
+    [data-testid="stMetricLabel"] p { color: var(--fg-faint); font-size: 0.85rem; }
+    [data-testid="stMetricValue"] { font-size: 1.6rem; font-weight: 500; }
+    /* Faint tint only: the label text carries the meaning, the colour just echoes it. */
+    .st-key-label-tile-positive [data-testid="stMetric"] {
+        background: color-mix(in srgb, var(--pos) 9%, var(--surface));
+        border-color: color-mix(in srgb, var(--pos) 40%, transparent);
+    }
+    .st-key-label-tile-negative [data-testid="stMetric"] {
+        background: color-mix(in srgb, var(--neg) 9%, var(--surface));
+        border-color: color-mix(in srgb, var(--neg) 40%, transparent);
+    }
+    .st-key-label-tile-neutral [data-testid="stMetric"] {
+        background: color-mix(in srgb, var(--neu) 9%, var(--surface));
+        border-color: color-mix(in srgb, var(--neu) 40%, transparent);
+    }
+
+    /* Methodology */
+    .methodology-box {
+        color: var(--fg-muted);
+        font-size: 0.92rem;
+        line-height: 1.6;
+        padding: 4px 2px;
+    }
+    .methodology-box .box-title {
+        color: var(--fg);
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    .methodology-box strong { color: var(--fg); }
     .methodology-box code {
-        background: #1e1e1e;
-        color: #deaa64;
-        padding: 2px 6px;
+        background: var(--bg);
+        color: var(--warm-text);
+        font-family: var(--mono);
+        padding: 1px 6px;
         border-radius: 4px;
     }
+
+    /* Sidebar */
+    .sidebar-title {
+        color: var(--fg);
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    .sidebar-subtitle, .sidebar-label {
+        color: var(--fg-faint);
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+    .sidebar-label { margin: 0.25rem 0 0.5rem; font-weight: 600; }
+    .sidebar-footer {
+        text-align: center;
+        color: var(--fg-faint);
+        font-size: 0.78rem;
+        line-height: 1.6;
+    }
+
+    /* Footer */
+    .app-footer {
+        border-top: 1px solid var(--border);
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        color: var(--fg-faint);
+        font-size: 0.85rem;
+    }
+    .app-footer .footer-title { color: var(--fg); font-weight: 600; font-size: 1rem; }
 </style>
 """, unsafe_allow_html=True)
+
+
+def section(title: str, caption: str = "", first: bool = False) -> None:
+    """Sober section heading; callers escape anything user-supplied in the caption."""
+    caption_html = f'<div class="section-caption">{caption}</div>' if caption else ""
+    st.markdown(
+        f'<div class="section-head{" first" if first else ""}">'
+        f'<div class="section-title">{title}</div>{caption_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def format_published(value) -> str:
+    """Readable timestamp for the cards; falls back to the raw value if it does not parse."""
+    try:
+        return pd.to_datetime(value).strftime("%d %b %Y, %H:%M")
+    except (ValueError, TypeError, AttributeError):
+        return str(value or "N/A")
+
+
+# Shared by every chart so they read as one set; sentiment colours are unchanged.
+SENTIMENT_COLORS = {"positive": "#5cc98a", "negative": "#e8604a", "neutral": "#928f87"}
+
+
+def style_chart(fig, height: int):
+    fig.update_layout(
+        height=height,
+        font=dict(color="#d5cabb", size=12),
+        title_font=dict(color="#f7eddf", size=14),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=10, t=48, b=10),
+    )
+    fig.update_xaxes(gridcolor="#3a3835", zerolinecolor="#3a3835", linecolor="#3a3835")
+    fig.update_yaxes(gridcolor="#3a3835", zerolinecolor="#3a3835", linecolor="#3a3835")
+    return fig
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -120,7 +313,11 @@ DEFAULT_TICKER = "NVDA"
 # SIDEBAR
 # ──────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### Syndra API Demo")
+    st.markdown(
+        "<div class='sidebar-subtitle'>Syndra Data Engine</div>"
+        "<div class='sidebar-title'>API Demo</div>",
+        unsafe_allow_html=True,
+    )
     st.markdown("---")
 
     # A public read-only key is preloaded from secrets so a first-time visitor
@@ -143,7 +340,7 @@ with st.sidebar:
         )
         if use_own:
             api_key = st.text_input(
-                "🔑 API Key",
+                "API Key",
                 type="password",
                 placeholder="syndra_xxxxxxxxxxxxxxxx",
                 help="Your Syndra API key. Request one at syndradata@gmail.com",
@@ -156,20 +353,20 @@ with st.sidebar:
             )
     else:
         api_key = st.text_input(
-            "🔑 API Key",
+            "API Key",
             type="password",
             placeholder="syndra_xxxxxxxxxxxxxxxx",
             help="Your Syndra API key. Request demo access at syndradata@gmail.com",
         )
 
     ticker = st.text_input(
-        "📈 Ticker Symbol",
+        "Ticker Symbol",
         value=DEFAULT_TICKER,
         placeholder="e.g. NVDA, AAPL, TSLA",
     ).upper().strip()
 
     article_limit = st.slider(
-        "📰 Article Limit",
+        "Article Limit",
         min_value=10,
         max_value=100,
         value=50,
@@ -178,7 +375,7 @@ with st.sidebar:
     )
 
     days_window = st.selectbox(
-        "⏱️ Time Window",
+        "Time Window",
         options=[1, 3, 7, 14, 30],
         format_func=lambda x: f"Last {x} days",
         index=1,
@@ -187,18 +384,18 @@ with st.sidebar:
 
     st.markdown("---")
 
-    if st.button("🚀 Analyze Sentiment", type="primary", use_container_width=True):
+    if st.button("Analyze Sentiment", type="primary", use_container_width=True):
         st.session_state["fetch_triggered"] = True
 
     st.markdown("---")
-    st.markdown("#### 📚 Resources")
+    st.markdown("<div class='sidebar-label'>Resources</div>", unsafe_allow_html=True)
     st.link_button("API Documentation", "https://api.syndradata.com/docs", use_container_width=True)
     st.link_button("JSON Schema (Gist)", "https://gist.github.com/FranSMM/7f69e0e54352634f5b977e8c0662b23a", use_container_width=True)
     st.link_button("GitHub Repository", "https://github.com/FranSMM/syndra-docs", use_container_width=True)
 
     st.markdown("---")
     st.markdown(
-        "<div style='text-align:center; font-size:0.8rem; color:#928f87;'>"
+        "<div class='sidebar-footer'>"
         "© 2026 Syndra Data Engine<br>"
         "<a href='mailto:syndradata@gmail.com'>syndradata@gmail.com</a>"
         "</div>",
@@ -208,12 +405,30 @@ with st.sidebar:
 # ──────────────────────────────────────────────────────────────────────────────
 # MAIN HEADER
 # ──────────────────────────────────────────────────────────────────────────────
-st.markdown("<div class='main-header'>Syndra · Financial Sentiment API</div>", unsafe_allow_html=True)
+# The landing's mark (frontend/favicon.svg), dark-mode colours, so both surfaces read as one product.
 st.markdown(
-    "<div class='sub-header'>"
-    "Zero-leakage NLP sentiment analysis for financial markets. "
-    "Self-hosted. API-first. No OpenAI dependency."
-    "</div>",
+    """
+    <div class="brand-header">
+        <div class="brand-row">
+            <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+                <path d="M25.99 15.48 A10 10 0 1 1 16.52 6.01" fill="none" stroke="#f7eddf" stroke-width="3.2" stroke-linecap="round"/>
+                <circle cx="23.07" cy="8.93" r="3.5" fill="#deaa64"/>
+            </svg>
+            <span>Syndra Data Engine</span>
+        </div>
+        <div class="brand-title">Financial Sentiment API</div>
+        <div class="brand-lede">
+            Zero-leakage NLP sentiment analysis for financial markets.
+            Self-hosted. API-first. No OpenAI dependency.
+        </div>
+        <div class="brand-meta">
+            <span><b>Source</b> Public financial news feeds</span>
+            <span><b>Sentiment</b> <code>ProsusAI/finBERT</code></span>
+            <span><b>Search</b> <code>all-MiniLM-L6-v2</code> on Qdrant</span>
+            <span><b>Freshness</b> Responses cached for 5 minutes</span>
+        </div>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -222,15 +437,13 @@ st.markdown(
 # API KEY VALIDATION
 # ──────────────────────────────────────────────────────────────────────────────
 if not api_key:
-    st.warning("👈 Please enter your API Key in the sidebar to begin.")
+    st.warning("Please enter your API Key in the sidebar to begin.")
     st.info(
         "Don't have a key? Request demo access at **syndradata@gmail.com** "
         "or connect with us on [LinkedIn](https://www.linkedin.com/in/francisco-montesinos/)."
     )
     
-    st.markdown("---")
-    st.markdown("### 📊 Dashboard Preview")
-    st.markdown("Here is a preview of the Syndra intelligence dashboard in action:")
+    section("Dashboard Preview", "A preview of the Syndra intelligence dashboard in action.")
     
     try:
         col_img1, col_img2 = st.columns(2)
@@ -297,7 +510,7 @@ def fetch_semantic_search(query: str, api_key: str, limit: int, ticker_filter: s
     return api_get("/search/semantic", api_key, params, "Semantic search is not available right now.")
 
 
-tab_sentiment, tab_search = st.tabs(["📊 Sentiment Analysis", "🔎 Semantic Search"])
+tab_sentiment, tab_search = st.tabs(["Sentiment Analysis", "Semantic Search"])
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SEMANTIC SEARCH TAB
@@ -306,11 +519,13 @@ tab_sentiment, tab_search = st.tabs(["📊 Sentiment Analysis", "🔎 Semantic S
 MAX_QUERY_LENGTH = 200  # same limit as the API's query parameter
 
 with tab_search:
-    st.markdown("### 🔎 Semantic Search")
-    st.markdown(
+    section(
+        "Semantic Search",
         "Search the news by meaning, not by keyword. Every article is embedded "
         "with all-MiniLM-L6-v2 and stored in Qdrant, so a query finds related "
-        "news even when it shares no words with it."
+        "news even when it shares no words with it. "
+        "Endpoint: <code>GET /search/semantic</code>",
+        first=True,
     )
 
     with st.form("semantic_search"):
@@ -327,7 +542,7 @@ with tab_search:
             ).upper().strip()
         with col_q2:
             search_limit = st.selectbox("Results", options=[5, 10, 20], index=0)
-        submitted = st.form_submit_button("🔎 Search", type="primary")
+        submitted = st.form_submit_button("Search", type="primary")
 
     if submitted:
         query = query.strip()
@@ -339,9 +554,9 @@ with tab_search:
                 try:
                     results = fetch_semantic_search(query, api_key, search_limit, search_ticker)
                 except ValueError as e:
-                    st.error(f"❌ {e}")
+                    st.error(str(e))
                 except Exception as e:
-                    st.error(f"❌ Unexpected error: {e}")
+                    st.error(f"Unexpected error: {e}")
 
         if results == []:
             st.info("No matching articles.")
@@ -355,15 +570,13 @@ with tab_search:
 
                 st.markdown(f"""
                 <div class="signal-card {label}-border">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <div style="flex:1;">
-                            <div style="color:#f7eddf; font-weight:600; font-size:1.1rem; line-height:1.4;">{title}</div>
-                            <div style="margin-top:8px; font-size:0.85rem; color:#a49b8e; font-weight:500;">{tickers}</div>
-                        </div>
-                        <div style="text-align:right; margin-left:16px; min-width:100px;">
-                            <div class="{label}" style="font-size:1.15rem; letter-spacing:0.05em;">{label.upper()}</div>
-                            <div style="font-size:0.95rem; color:#d5cabb; font-weight:500; margin-top:4px;">similarity {similarity:.4f}</div>
-                        </div>
+                    <div class="signal-main">
+                        <div class="signal-title">{title}</div>
+                        <div class="signal-meta">{tickers}</div>
+                    </div>
+                    <div class="signal-side">
+                        <div class="signal-label {label}">{label.upper()}</div>
+                        <div class="signal-score">similarity {similarity:.4f}</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -376,7 +589,7 @@ with tab_search:
 # ──────────────────────────────────────────────────────────────────────────────
 with tab_sentiment:
     if not ticker:
-        st.warning("👈 Please enter a ticker symbol in the sidebar.")
+        st.warning("Please enter a ticker symbol in the sidebar.")
         st.stop()
 
     # ──────────────────────────────────────────────────────────────────────────────
@@ -385,17 +598,17 @@ with tab_sentiment:
     fetch_triggered = st.session_state.get("fetch_triggered", True)
 
     if fetch_triggered:
-        with st.spinner(f"🔍 Analyzing sentiment for **{ticker}**..."):
+        with st.spinner(f"Analyzing sentiment for **{ticker}**..."):
             try:
                 data = fetch_sentiment_data(ticker, api_key, article_limit, days_window)
             except ValueError as e:
-                st.error(f"❌ {e}")
+                st.error(str(e))
                 st.stop()
             except Exception as e:
-                st.error(f"❌ Unexpected error: {e}")
+                st.error(f"Unexpected error: {e}")
                 st.stop()
     else:
-        st.info("👈 Click **Analyze Sentiment** in the sidebar to fetch data.")
+        st.info("Click **Analyze Sentiment** in the sidebar to fetch data.")
         st.stop()
 
     # ──────────────────────────────────────────────────────────────────────────────
@@ -403,8 +616,13 @@ with tab_sentiment:
     # ──────────────────────────────────────────────────────────────────────────────
 
     # ── KEY METRICS ──
-    st.markdown("---")
-    st.markdown("### 📊 Aggregated Sentiment Overview")
+    # Ticker is visitor input, so it is escaped before going into the caption HTML.
+    section(
+        "Aggregated Sentiment Overview",
+        f"<code>GET /sentiment/{html.escape(ticker)}</code> · last {days_window} days · "
+        f"up to {article_limit} articles",
+        first=True,
+    )
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -413,28 +631,28 @@ with tab_sentiment:
     count = data.get("article_count", 0)
     window = data.get("time_window", "N/A")
 
-    sentiment_class = sentiment.lower()
-    sentiment_emoji = {"positive": "🟢", "negative": "🔴", "neutral": "⚪"}.get(sentiment_class, "⚪")
-
     with col1:
-        st.metric("Articles Analyzed", count)
+        st.metric("Articles Analyzed", count, border=True)
     with col2:
-        st.metric("Avg Sentiment Score", f"{score:.4f}")
-    with col3:
-        st.metric("Sentiment Label", f"{sentiment_emoji} {sentiment.title()}")
+        st.metric("Avg Sentiment Score", f"{score:.4f}", border=True)
+    # The key becomes a CSS class, so it only takes the three known labels.
+    tile_label = sentiment.lower() if sentiment.lower() in SENTIMENT_COLORS else "neutral"
+    with col3, st.container(key=f"label-tile-{tile_label}"):
+        st.metric("Sentiment Label", sentiment.title(), border=True)
     with col4:
-        st.metric("Time Window", window)
+        st.metric("Time Window", window, border=True)
     with col5:
         fig_gauge = go.Figure(go.Indicator(
             mode="gauge+number",
             value=score,
             domain={"x": [0, 1], "y": [0, 1]},
-            number={"font": {"size": 24}},
+            number={"font": {"size": 22, "color": "#f7eddf"}, "valueformat": ".3f"},
             gauge={
-                "axis": {"range": [-1, 1], "tickwidth": 1},
-                "bar": {"color": "#deaa64"},
-                "bgcolor": "white",
-                "borderwidth": 2,
+                "axis": {"range": [-1, 1], "tickwidth": 1, "tickcolor": "#4a4844",
+                         "tickfont": {"color": "#a49b8e", "size": 10}},
+                "bar": {"color": "#deaa64", "thickness": 0.3},
+                "bgcolor": "rgba(0,0,0,0)",
+                "borderwidth": 1,
                 "bordercolor": "#3a3835",
                 "steps": [
                     {"range": [-1, -0.2], "color": "#3a2320"},
@@ -442,20 +660,20 @@ with tab_sentiment:
                     {"range": [0.2, 1], "color": "#223a2c"},
                 ],
                 "threshold": {
-                    "line": {"color": "red", "width": 4},
+                    "line": {"color": "#f7eddf", "width": 3},
                     "thickness": 0.75,
                     "value": score,
                 },
             },
         ))
-        fig_gauge.update_layout(height=180, margin=dict(l=10, r=10, t=10, b=10))
+        fig_gauge.update_layout(height=150, margin=dict(l=18, r=18, t=18, b=6), paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_gauge, use_container_width=True, config={"displayModeBar": False})
 
     # ── SCORING METHODOLOGY (MLOps) ──
-    with st.expander("📖 Understanding the Scoring Methodology", expanded=False):
+    with st.expander("Understanding the Scoring Methodology", expanded=False):
         st.markdown("""
         <div class="methodology-box">
-            <h4>🔬 FinBERT Softmax Classification</h4>
+            <div class="box-title">FinBERT Softmax Classification</div>
             <p>
             Syndra uses <strong>ProsusAI/finBERT</strong>, a domain-specific BERT model fine-tuned on financial text.
             Unlike regression models, FinBERT outputs <strong>classification probabilities via Softmax</strong>:
@@ -471,15 +689,14 @@ with tab_sentiment:
             it indicates market uncertainty or mixed signals in the news corpus.
             </p>
             <p>
-            <strong>💡 For Quants:</strong> Use <code>sentiment_label</code> for discrete event triggers
+            <strong>For Quants:</strong> Use <code>sentiment_label</code> for discrete event triggers
             and the <strong>moving average of <code>sentiment_score</code></strong> for trend divergence analysis.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
     # ── SENTIMENT TIMELINE ──
-    st.markdown("---")
-    st.markdown("### 📈 Sentiment Timeline")
+    section("Sentiment Timeline", "Each point is one article, scored individually by FinBERT.")
 
     signals = data.get("recent_signals", [])
     if signals:
@@ -492,20 +709,18 @@ with tab_sentiment:
             x="published_at",
             y="sentiment_score",
             color="sentiment_label",
-            color_discrete_map={"positive": "#5cc98a", "negative": "#e8604a", "neutral": "#928f87"},
+            color_discrete_map=SENTIMENT_COLORS,
             hover_data={"title": True, "source": True, "sentiment_score": ":.4f"},
             title=f"Sentiment Score Evolution: {ticker}",
             labels={"published_at": "Published At", "sentiment_score": "Sentiment Score"},
         )
-        fig_timeline.update_traces(marker=dict(size=10, opacity=0.8))
+        fig_timeline.update_traces(marker=dict(size=9, opacity=0.85, line=dict(width=0)))
+        style_chart(fig_timeline, 400)
         fig_timeline.update_layout(
-            height=400,
             xaxis_title="",
             yaxis_title="Sentiment Score",
             yaxis=dict(range=[-1.1, 1.1]),
             legend_title_text="Label",
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
         )
         fig_timeline.add_hline(y=0, line_dash="dash", line_color="#928f87", opacity=0.5)
         st.plotly_chart(fig_timeline, use_container_width=True)
@@ -517,30 +732,48 @@ with tab_sentiment:
                 names=list(dist.keys()),
                 values=list(dist.values()),
                 color=list(dist.keys()),
-                color_discrete_map={"positive": "#5cc98a", "negative": "#e8604a", "neutral": "#928f87"},
+                color_discrete_map=SENTIMENT_COLORS,
                 title="Signal Distribution",
+                hole=0.55,
             )
-            fig_pie.update_layout(height=300, showlegend=False)
+            # Label next to the share: the light green is only safe for CVD with its text beside it.
+            fig_pie.update_traces(textinfo="label+percent", marker=dict(line=dict(color="#1e1e1e", width=2)))
+            style_chart(fig_pie, 300)
+            fig_pie.update_layout(showlegend=False)
             st.plotly_chart(fig_pie, use_container_width=True)
 
         with col_b:
-            fig_hist = px.histogram(
-                df,
-                x="sentiment_score",
-                nbins=20,
-                color="sentiment_label",
-                color_discrete_map={"positive": "#5cc98a", "negative": "#e8604a", "neutral": "#928f87"},
-                title="Score Distribution",
-                labels={"sentiment_score": "Score", "count": "Articles"},
+            # Bucketed by score rounded to one decimal, so each bar names a single value; + 0.0 turns -0.0 into 0.0.
+            df_bins = (
+                df.assign(score_bin=df["sentiment_score"].round(1) + 0.0)
+                .groupby(["score_bin", "sentiment_label"]).size().reset_index(name="articles")
             )
-            fig_hist.update_layout(height=300, bargap=0.1)
+            fig_hist = px.bar(
+                df_bins,
+                x="score_bin",
+                y="articles",
+                color="sentiment_label",
+                color_discrete_map=SENTIMENT_COLORS,
+                category_orders={"sentiment_label": ["positive", "neutral", "negative"]},
+                title="Score Distribution",
+                labels={"score_bin": "Score", "articles": "Articles", "sentiment_label": "Label"},
+            )
+            fig_hist.update_traces(
+                width=0.08,
+                hovertemplate="%{fullData.name}<br>Score %{x:.1f}<br>Articles %{y}<extra></extra>",
+            )
+            style_chart(fig_hist, 300)
+            # Full score range: autorange ignores the manual bar width and clips the edge bars.
+            fig_hist.update_xaxes(range=[-1.05, 1.05], dtick=0.5)
+            # Whole-article ticks when counts are small, where plotly would otherwise show 0.5 steps.
+            if df_bins["articles"].max() <= 8:
+                fig_hist.update_yaxes(dtick=1)
             st.plotly_chart(fig_hist, use_container_width=True)
     else:
         st.info("No recent signals available for this ticker.")
 
     # ── RECENT SIGNALS ──
-    st.markdown("---")
-    st.markdown("### 📰 Recent Signals")
+    section("Recent Signals", "Per-article scores behind the aggregate above.")
 
     if signals:
         for sig in signals[:10]:
@@ -551,26 +784,20 @@ with tab_sentiment:
             raw_url = sig.get("url") or ""
             url = html.escape(raw_url) if raw_url.startswith(("http://", "https://")) else "#"
             source = html.escape(sig.get("source") or "Unknown")
-            published = html.escape(str(sig.get("published_at") or "N/A"))
+            published = html.escape(format_published(sig.get("published_at")))
 
             border_class = f"{label}-border"
             label_class = label
 
             st.markdown(f"""
             <div class="signal-card {border_class}">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div style="flex:1;">
-                        <a href="{url}" target="_blank" style="text-decoration:none; color:#f7eddf; font-weight:600; font-size:1.1rem; line-height:1.4;">
-                            {title}
-                        </a>
-                        <div style="margin-top:8px; font-size:0.85rem; color:#a49b8e; font-weight:500;">
-                            {source} &nbsp;·&nbsp; {published}
-                        </div>
-                    </div>
-                    <div style="text-align:right; margin-left:16px; min-width:100px;">
-                        <div class="{label_class}" style="font-size:1.15rem; letter-spacing:0.05em;">{label.upper()}</div>
-                        <div style="font-size:0.95rem; color:#d5cabb; font-weight:500; margin-top:4px;">{score_s:.4f}</div>
-                    </div>
+                <div class="signal-main">
+                    <a class="signal-title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
+                    <div class="signal-meta">{source} &nbsp;·&nbsp; {published}</div>
+                </div>
+                <div class="signal-side">
+                    <div class="signal-label {label_class}">{label.upper()}</div>
+                    <div class="signal-score">{score_s:+.4f}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -581,8 +808,7 @@ with tab_sentiment:
         st.info("No signals to display.")
 
     # ── RAW JSON (for developers) ──
-    st.markdown("---")
-    st.markdown("### 🔧 Raw API Response")
+    section("Raw API Response", "The unmodified JSON payload and a Python quick-start.")
 
     with st.expander("View JSON (for integration debugging)", expanded=False):
         st.json(data)
@@ -597,20 +823,17 @@ with tab_sentiment:
         st.code(code_snippet, language="python")
 
 # ── FOOTER CTA ──
-st.markdown("---")
 st.markdown("""
-<div style="text-align:center; padding:2rem 0;">
-    <h3>Ready to integrate Syndra into your pipeline?</h3>
-    <p style="color:#928f87;">
-        Self-hosted · Zero data leakage · FinBERT-powered · REST API
-    </p>
+<div class="app-footer">
+    <div class="footer-title">Integrate Syndra into your pipeline</div>
+    <div>Self-hosted · Zero data leakage · FinBERT-powered · REST API</div>
 </div>
 """, unsafe_allow_html=True)
 
 col_cta1, col_cta2, col_cta3 = st.columns(3)
 with col_cta1:
-    st.link_button("📖 Full API Docs", "https://api.syndradata.com/docs", use_container_width=True)
+    st.link_button("Full API Docs", "https://api.syndradata.com/docs", use_container_width=True)
 with col_cta2:
-    st.link_button("💬 Contact Sales", "mailto:syndradata@gmail.com", use_container_width=True)
+    st.link_button("Contact Sales", "mailto:syndradata@gmail.com", use_container_width=True)
 with col_cta3:
-    st.link_button("⭐ Star on GitHub", "https://github.com/FranSMM/syndra-docs", use_container_width=True)
+    st.link_button("View on GitHub", "https://github.com/FranSMM/syndra-docs", use_container_width=True)
