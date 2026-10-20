@@ -6,6 +6,66 @@
     "enabled": true
   },
   {
+    "name": "yahoo_finance_megacap_tech",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,MSFT,GOOGL,AMZN,META&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_semiconductors",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=NVDA,AMD,INTC,AVGO,MU&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_chip_supply",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=TSM,ASML,QCOM,ARM,MRVL&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_software",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=ORCL,CRM,ADBE,NOW,PLTR&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_growth",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=TSLA,NFLX,UBER,COIN,CRWD&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_banks",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=JPM,BAC,GS,MS,BLK&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_healthcare",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=LLY,JNJ,PFE,MRNA,UNH&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_consumer",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=WMT,COST,NKE,HD,DIS&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_energy",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=XOM,CVX,COP,LNG,SLB&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
+    "name": "yahoo_finance_industrials_payments",
+    "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=BA,CAT,F,V,PYPL&region=US&lang=en-US",
+    "source_type": "rss_feed",
+    "enabled": true
+  },
+  {
     "name": "bbc_business",
     "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
     "source_type": "rss_feed",
