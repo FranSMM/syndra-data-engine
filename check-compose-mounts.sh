@@ -1,26 +1,13 @@
 #!/bin/bash
 #
-# Verify that every host path a compose file bind-mounts actually exists, and is
-# the same kind of thing (file or directory) as its destination implies.
-#
-# This exists because of a specific, expensive failure. Docker does not refuse a
-# bind mount whose source is missing: it silently creates an empty *directory*
-# there, then fails to mount that directory onto a file. The container never
-# starts and reports exit code 127, which means "command not found" and sends
-# you looking for a broken entrypoint. The real message is buried in
-# `docker inspect -f '{{.State.Error}}'`, which nobody reads first.
-#
-# The local development stack sat dead for four weeks that way.
+# Checks that every host path a compose file bind-mounts exists and has the expected type.
+# Docker turns a missing source into an empty directory, and the container fails with a misleading exit 127.
 #
 # Usage:
 #   ./check-compose-mounts.sh                       # the local development stack
 #   ./check-compose-mounts.sh some-compose.yml      # any other file
 #
-# Deliberately does NOT check infra/docker-compose.prod.yml by default. That
-# file's relative paths resolve against the deploy directory on the VPS, where
-# deploy.sh has placed them and where streamlit-secrets.toml lives. Checking it
-# from a laptop reports a missing secret that is not missing, and a checker that
-# cries wolf gets ignored, which is worse than not having one.
+# infra/docker-compose.prod.yml is not checked by default: its paths resolve on the VPS.
 set -uo pipefail
 
 FILES=("$@")
@@ -38,13 +25,10 @@ for compose in "${FILES[@]}"; do
     fi
 
     echo "== $compose"
-    # Relative paths in a compose file resolve against the file's own directory,
-    # not against the shell's working directory. Getting that wrong here would
-    # make the checker disagree with docker for the most interesting cases.
+    # Relative paths resolve against the compose file's directory, as Docker does.
     base=$(cd "$(dirname "$compose")" && pwd)
 
-    # Only ./ and ../ entries are host paths. A leading name with no slash is a
-    # named volume, which docker creates on demand and which cannot fail this way.
+    # Only ./ and ../ entries are host paths; named volumes are created on demand.
     grep -oE '^[[:space:]]*-[[:space:]]+\.{1,2}/[^:]+:[^:]+' "$compose" \
     | sed -E 's/^[[:space:]]*-[[:space:]]+//' \
     | while IFS= read -r entry; do
@@ -57,10 +41,7 @@ for compose in "${FILES[@]}"; do
             echo "           docker creara un directorio vacio aqui y el contenedor no arrancara"
             echo "$compose:$src" >> "$PROBLEMS_FILE"
         elif [ -d "$abs" ] && [[ "$(basename "$dst")" == ?*.* ]]; then
-            # An extension on the destination's *basename* suggests it wants a
-            # file. Checking the whole path would flag /root/.cache/huggingface,
-            # where the dot belongs to a directory name. Not conclusive either
-            # way, so it warns rather than failing.
+            # An extension in the destination name suggests a file; only a hint, so it warns.
             echo "  [OJO]    $src es un directorio y se monta en $dst"
         else
             echo "  [ok]     $src"

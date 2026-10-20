@@ -1,13 +1,7 @@
 #!/bin/bash
 #
-# Read-only health check of the observability stack on the production VPS.
-#
-# Sibling of deploy.sh and the same shape: runs from the laptop, talks to the
-# VPS over SSH, touches nothing. Answers the question "is Prometheus actually
-# collecting, and is what it collected any good" without opening a browser.
-#
-# Prints PASS/WARN per check and exits non-zero if anything is WARN, so it can
-# be dropped into a cron or a CI job later without rewriting it.
+# Read-only health check of the production observability stack, run over SSH.
+# Prints PASS/WARN per check and exits non-zero if any check warns.
 #
 # Usage:
 #   ./check-observability.sh            Check the last 5 days
@@ -31,10 +25,8 @@ if [ -z "$VPS_IP" ] || [ -z "$VPS_USER" ]; then
     exit 1
 fi
 
-# The payload runs on the VPS because Prometheus listens on loopback there and
-# is deliberately not reachable from anywhere else. Passing the window through
-# the environment rather than interpolating it into the script keeps the quoting
-# survivable across ssh.
+# Runs on the VPS because Prometheus only listens on its loopback.
+# WINDOW goes in as an env var so ssh does not mangle the quoting.
 ssh "$VPS_USER@$VPS_IP" "WINDOW='$WINDOW' DEPLOY_DIR='$DEPLOY_DIR' python3 -" <<'REMOTE'
 import json, os, re, socket, ssl, time, urllib.parse, urllib.request
 
@@ -50,7 +42,7 @@ def q(expr):
     return json.load(urllib.request.urlopen(url, timeout=30))["data"]["result"]
 
 def v(expr):
-    """Scalar value or None. Never conflate a real 0 with a missing series."""
+    """Scalar value, or None when the series is missing (not the same as 0)."""
     r = q(expr)
     return float(r[0]["value"][1]) if r else None
 
@@ -83,14 +75,9 @@ if series:
     for r in sorted(q('count by (job) ({__name__=~".+"})'), key=lambda r: -int(r["value"][1])):
         print("      %-12s %6s" % (r["metric"].get("job", "?"), r["value"][1]))
 
-# Projected footprint from the measured ingestion rate. This is the check that
-# the 2GB cap originally failed: a guardrail that quietly becomes the binding
-# limit deletes the earliest history, which is the history worth keeping.
+# Warns if the size cap, not the time retention, would start deleting history.
 if sps:
-    # Measured on 16/09/2026: 24.7MB/day of TSDB blocks against 16.09M
-    # samples/day is 1.53 bytes per sample. Left at 1.75 deliberately: this
-    # projection guards a disk, so erring high warns early, and the alternative
-    # errs late. Do not "correct" it downwards without a reason.
+    # Measured 1.53 bytes per sample, rounded up so the projection errs high.
     bytes_per_sample = 1.75
     projected_gb = sps * 86400 * RETENTION_DAYS * bytes_per_sample / 1e9
     pct = projected_gb / SIZE_CAP_GB * 100
@@ -120,9 +107,7 @@ print("\n=== FRESCURA POR FUENTE ===")
 for r in sorted(q("syndra_source_last_article_age_seconds"), key=lambda r: -float(r["value"][1])):
     src = r["metric"]["source"]
     hours = float(r["value"][1]) / 3600
-    # A negative age means the newest published_at is in the future, which is a
-    # data bug, not freshness. Deliberately not clamped to zero anywhere in the
-    # pipeline: clamping would render it as "perfectly fresh" and hide it.
+    # A negative age means a published_at in the future, a date parsing bug.
     if hours < 0:
         line("WARN", "%s tiene fechas en el FUTURO (%.0f h): bug de parseo de fecha" % (src, -hours))
     elif hours > 72:
@@ -140,21 +125,20 @@ if not stages:
 last_run = v("syndra_etl_last_flow_run_timestamp_seconds")
 if last_run:
     mins = (time.time() - last_run) / 60
-    # The flow is hourly, so anything past two hours means it missed a slot.
+    # The flow is hourly, so over two hours means a missed run.
     line("WARN" if mins > 120 else "PASS", "ultimo flow run hace %.0f min" % mins)
 
 fresh = v("syndra_etl_metrics_last_success_timestamp_seconds")
 if fresh:
     age = time.time() - fresh
-    # Without this the gauges above could be frozen from hours ago and look fine.
+    # Stale gauges would make the ETL checks above look healthy.
     line("WARN" if age > 300 else "PASS", "gauges refrescados hace %.0f s" % age)
 
 for r in q("syndra_etl_flow_runs"):
     print("  flow runs 24h: %s=%s" % (r["metric"]["state"], r["value"][1]))
 
-print("\n=== RECURSOS (lo que pide el Cap. 4) ===")
-# A recreated container is a new cAdvisor series (the cgroup id changes), so a
-# window spanning a deploy holds several. Aggregate them or only one is read.
+print("\n=== RECURSOS ===")
+# A redeploy starts a new cAdvisor series per container, so they are aggregated.
 for name in ("syndra_scheduler", "syndra_api"):
     sel = 'container_memory_working_set_bytes{name="%s"}[%s]' % (name, WINDOW)
     peak = v("max(max_over_time(%s))" % sel)
@@ -162,16 +146,14 @@ for name in ("syndra_scheduler", "syndra_api"):
     if peak:
         print("  %-18s pico %7.1f MB   media %7.1f MB" % (name, peak / 1e6, avg / 1e6))
 
-# cAdvisor lives pinned at its ceiling by design: almost all of its resident set
-# is reclaimable kernel cache. anon is the only number that would signal a leak.
+# cAdvisor sits at its memory limit with reclaimable cache; only anon signals a leak.
 anon = v('max(container_memory_rss{name="syndra_cadvisor"})')
 if anon is not None:
     line("WARN" if anon > 100e6 else "PASS",
          "cadvisor anon %.1f MB (normal ~10 MB; su techo alto es cache reclamable)" % (anon / 1e6))
 
 print("\n=== CERTIFICADOS TLS DEL ORIGEN ===")
-# Read from Caddy on loopback, not through Cloudflare: the edge serves its own
-# certificate, so an expired origin one stays invisible from the browser.
+# Asks Caddy directly: through Cloudflare the edge certificate hides the origin one.
 caddyfile = os.path.join(os.environ.get("DEPLOY_DIR", ""), "Caddyfile")
 try:
     with open(caddyfile) as f:
@@ -193,8 +175,7 @@ for site in sites:
     start = ssl.cert_time_to_seconds(cert["notBefore"])
     end = ssl.cert_time_to_seconds(cert["notAfter"])
     days_left = (end - time.time()) / 86400
-    # Caddy renews with a third of the lifetime left. Under a quarter means the
-    # renewal is overdue, whatever lifetime the CA issues.
+    # Caddy renews with a third of the lifetime left, so under a quarter means it failed.
     if end - time.time() < (end - start) / 4:
         line("WARN", "%s caduca en %.0f dias y no se ha renovado" % (site, days_left))
     else:
@@ -205,8 +186,6 @@ if warnings:
     print("%d AVISO(S):" % len(warnings))
     for w in warnings:
         print("  - %s" % w)
-    # Non-zero on warnings, so this can be dropped into cron or CI unchanged.
-    # `make obs` swallows it deliberately: see the comment on that target.
 else:
     print("Todo correcto.")
 print("=" * 52)

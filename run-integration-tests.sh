@@ -1,22 +1,7 @@
 #!/bin/bash
 #
-# Runs the integration suite against a throwaway stack.
-#
-# test_security.py is the only test file that needs live infrastructure: it
-# talks to Postgres, to Redis, and over HTTP to the API itself. Everything else
-# in tests/ stubs the session and runs anywhere.
-#
-# It gets its own disposable stack rather than the development one for two
-# reasons. It writes to the database: inserting and then deleting API keys,
-# so a crashed run leaves rows behind, and the local stack is somewhere you
-# keep data you care about. And its containers are named distinctly, so running
-# this never collides with whatever you already have up.
-#
-# NEVER point this at production. The suite inserts a working API key whose
-# value ('syndra_test_valid_123') is written in the source file, and fires 100
-# requests to provoke a 429. On the VPS that is a guessable live credential for
-# the duration of the run, plus synthetic traffic landing in the same
-# http_requests_total and latency histograms the results chapter is built from.
+# Runs test_security.py, the only suite that needs live services, against a throwaway stack.
+# Never against production: it creates a known API key and sends 100 requests to trigger a 429.
 #
 # Usage:
 #   ./run-integration-tests.sh                 # builds from ./backend
@@ -43,8 +28,7 @@ cleanup() {
     docker rm -f "$API" "$PG" "$REDIS" "$QDRANT" >/dev/null 2>&1
     docker network rm "$NET" >/dev/null 2>&1
 }
-# Runs on success, on failure and on Ctrl+C: a half-torn-down stack would hold
-# the container names and make the next run fail for an unrelated reason.
+# Also on failure or Ctrl+C, so leftover containers do not block the next run.
 trap cleanup EXIT INT TERM
 cleanup
 
@@ -64,14 +48,14 @@ docker run -d --name "$PG" --network "$NET" \
 docker run -d --name "$REDIS" --network "$NET" redis:7-alpine >/dev/null
 docker run -d --name "$QDRANT" --network "$NET" qdrant/qdrant:v1.17.0 >/dev/null
 
+# Waits up to 60 s for Postgres to accept connections.
 for _ in $(seq 1 60); do
     docker exec "$PG" pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 && break
     sleep 1
 done
 
 echo "-- levantando la API"
-# tests/ is in .dockerignore and so is not in the image; docker cp puts it in
-# after create and before start.
+# tests/ is excluded from the image, so it is copied in before the container starts.
 docker create --name "$API" --network "$NET" \
     -e POSTGRES_USER="$POSTGRES_USER" \
     -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
@@ -85,6 +69,7 @@ docker cp ./backend/tests "$API:/code/tests" >/dev/null
 docker cp ./backend/pytest.ini "$API:/code/pytest.ini" >/dev/null
 docker start "$API" >/dev/null
 
+# Waits up to 2 minutes for the API health endpoint.
 for _ in $(seq 1 60); do
     docker exec "$API" python -c \
         "import urllib.request;urllib.request.urlopen('http://localhost:8000/health',timeout=2)" \
