@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/public/syndra_data_engine_hero.png" alt="Syndra Logo" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/public/syndra_logo_dark.png">
+    <img src="assets/public/syndra_logo_light.png" alt="Syndra" width="560">
+  </picture>
 </p>
 
 # Syndra - Advanced Financial DaaS Platform 📈
