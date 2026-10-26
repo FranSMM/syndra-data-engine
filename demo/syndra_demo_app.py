@@ -58,7 +58,7 @@ st.markdown("""
         max-width: 1280px;
     }
     /* Links take the warm text step and never an underline, as on the landing. */
-    .signal-card a, .sidebar-footer a {
+    .signal-row a, .sidebar-footer a {
         color: var(--warm-text);
         text-decoration: none;
     }
@@ -133,31 +133,24 @@ st.markdown("""
     .negative { color: var(--neg); }
     .neutral  { color: var(--neu); }
 
-    /* Signal cards */
-    .signal-card {
+    /* Signal rows: a plain list split by hairlines; the label carries the sentiment. */
+    .signal-row {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 24px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-left: 3px solid var(--border-strong);
-        border-radius: 6px;
-        padding: 14px 18px;
-        margin-bottom: 10px;
+        border-top: 1px solid var(--border);
+        padding: 12px 2px;
     }
-    .signal-card.positive-border { border-left-color: var(--pos); }
-    .signal-card.negative-border { border-left-color: var(--neg); }
-    .signal-card.neutral-border  { border-left-color: var(--neu); }
     .signal-main { flex: 1; min-width: 0; }
-    .signal-card .signal-title {
+    .signal-row .signal-title {
         display: block;
         color: var(--fg);
         font-weight: 600;
         font-size: 1rem;
         line-height: 1.4;
     }
-    .signal-card a.signal-title:hover { color: var(--warm-text); }
+    .signal-row a.signal-title:hover { color: var(--warm-text); }
     .signal-meta {
         margin-top: 6px;
         color: var(--fg-faint);
@@ -569,7 +562,7 @@ with tab_search:
                 similarity = hit.get("similarity_score", 0.0)
 
                 st.markdown(f"""
-                <div class="signal-card {label}-border">
+                <div class="signal-row">
                     <div class="signal-main">
                         <div class="signal-title">{title}</div>
                         <div class="signal-meta">{tickers}</div>
@@ -786,17 +779,14 @@ with tab_sentiment:
             source = html.escape(sig.get("source") or "Unknown")
             published = html.escape(format_published(sig.get("published_at")))
 
-            border_class = f"{label}-border"
-            label_class = label
-
             st.markdown(f"""
-            <div class="signal-card {border_class}">
+            <div class="signal-row">
                 <div class="signal-main">
                     <a class="signal-title" href="{url}" target="_blank" rel="noopener noreferrer">{title}</a>
                     <div class="signal-meta">{source} &nbsp;·&nbsp; {published}</div>
                 </div>
                 <div class="signal-side">
-                    <div class="signal-label {label_class}">{label.upper()}</div>
+                    <div class="signal-label {label}">{label.upper()}</div>
                     <div class="signal-score">{score_s:+.4f}</div>
                 </div>
             </div>
