@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Experiment 04: FinBERT throughput and memory per mode and batch size."""
+"""Experiment 04: FinBERT throughput and memory per mode and batch size.
+
+Reads the raw CSV written by measure.sh and prints one summary row per mode
+and batch size to stdout, with the speed-up over the production mode.
+
+Usage: python3 analyze.py results/inference_STAMP.csv > results/inference_STAMP_summary.csv
+"""
 import csv
 import random
 import statistics
@@ -15,6 +21,11 @@ HEADER = ["mode", "batch_size", "n", "first_ms", "median_ms", "ci95_low_ms", "ci
 
 
 def main(csv_path):
+    """Summarise each mode and batch size and write the summary CSV to stdout.
+
+    Reference: Efron and Tibshirani (1993), An Introduction to the Bootstrap
+    (percentile interval of the median).
+    """
     groups = defaultdict(list)
     with open(csv_path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -32,9 +43,12 @@ def main(csv_path):
         median = statistics.median(wall)
         low, high = stats.ci95(wall, statistics.median, rng)
         articles = int(rows[0]["articles"])
+        # CPU time over wall time: how many cores the inference kept busy on average.
         cores = statistics.median(float(r["cpu_ms"]) / float(r["wall_ms"]) for r in rest)
         if mode == "production":
             production = median
+        # The median is in ms per repetition of `articles` texts, hence the * 1000.
+        # VmHWM never decreases within a process, so the maximum is the process peak.
         summaries.append([
             mode, batch_size, len(rest), rows[0]["wall_ms"], f"{median:.1f}", f"{low:.1f}", f"{high:.1f}",
             f"{articles / median * 1000:.1f}", f"{cores:.2f}", rows[0]["load_rss_mb"],

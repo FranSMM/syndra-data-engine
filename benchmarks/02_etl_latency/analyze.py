@@ -6,6 +6,8 @@ Two views, one CSV:
   feeds      median per stage for each feed count, and the difference between
              the largest and smallest count, to separate a step caused by adding
              sources from day-to-day noise
+
+Usage: python3 analyze.py results/etl_YYYYMMDD_HHMMSS.csv > results/etl_YYYYMMDD_HHMMSS_summary.csv
 """
 import csv
 import random
@@ -15,6 +17,7 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+# Makes benchmarks/lib/stats.py importable without installing it.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 import stats  # noqa: E402
 
@@ -26,12 +29,17 @@ STAGE_ALIASES = {"Extract Scrapy Spider": "Extract: Generic RSS Spiders"}
 
 
 def load_completed(csv_path):
-    """Completed runs as (stage, iso_week, n_feeds, seconds)."""
+    """Completed runs as (stage, iso_week, n_feeds, seconds).
+
+    n_feeds is None for runs whose logs do not record a feed count.
+    """
     rows = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
+            # Failed or cancelled runs would mix an aborted duration with real work.
             if row["state"] != "COMPLETED" or not row["seconds"]:
                 continue
+            # The week of the flow start, so all stages of one run share a week.
             year, week, _ = date.fromisoformat(row["flow_start"][:10]).isocalendar()
             feeds = int(row["n_feeds"]) if row["n_feeds"] else None
             stage = STAGE_ALIASES.get(row["stage"], row["stage"])
@@ -40,6 +48,12 @@ def load_completed(csv_path):
 
 
 def summary_row(view, group, stage, values, rng):
+    """Return one output row: n, median with its bootstrap 95 % interval, and p95.
+
+    The median is the typical run; the nearest-rank p95 shows the slow tail
+    that the median hides.
+    Reference: Dean and Barroso (2013), The Tail at Scale.
+    """
     ordered = sorted(values)
     low, high = stats.ci95(values, statistics.median, rng)
     return [view, group, stage, len(values), f"{statistics.median(values):.3f}",
@@ -47,6 +61,7 @@ def summary_row(view, group, stage, values, rng):
 
 
 def weekly_view(rows, rng):
+    """Yield one summary row per ISO week and stage, in week order."""
     groups = defaultdict(list)
     for stage, week, _, seconds in rows:
         groups[(week, stage)].append(seconds)
@@ -55,6 +70,7 @@ def weekly_view(rows, rng):
 
 
 def feeds_view(rows, rng):
+    """Yield one summary row per stage and feed count, then one difference row per stage."""
     groups = defaultdict(list)
     for stage, _, feeds, seconds in rows:
         # Runs from before the feed count was logged cannot be attributed.
@@ -67,8 +83,10 @@ def feeds_view(rows, rng):
     for (stage, feeds), values in groups.items():
         by_stage[stage][feeds] = values
     for stage, per_count in sorted(by_stage.items()):
+        # A difference needs at least two feed counts.
         if len(per_count) < 2:
             continue
+        # Only the extreme counts are compared; any count in between is not used here.
         fewest, most = min(per_count), max(per_count)
         a, b = per_count[fewest], per_count[most]
         low, high = stats.ci95_difference(a, b, statistics.median, rng)
@@ -79,7 +97,9 @@ def feeds_view(rows, rng):
 
 
 def main(csv_path):
+    """Print the weekly and feeds views of the raw CSV as one summary CSV."""
     rows = load_completed(csv_path)
+    # One generator for every group, in a fixed order, so the intervals are repeatable.
     rng = random.Random(stats.SEED)
     writer = csv.writer(sys.stdout, lineterminator="\n")
     writer.writerow(HEADER)

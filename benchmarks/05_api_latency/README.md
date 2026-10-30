@@ -31,6 +31,6 @@ The script downloads vegeta on first use and checks its SHA-256 against the valu
 
 **Statistics:** nearest-rank percentiles (always an observed value, never an interpolation), p50, p90, p95 and p99, each with a 95 % bootstrap confidence interval (10,000 resamples, seed 2026). Non-200 responses are counted as errors and excluded from the percentiles. The first request of each run pays the TLS handshake and is reported apart. With 720 requests per scenario the p99 rests on about 7 observations: read its interval, not only its value.
 
-**Side effects in production:** 2,880 synthetic requests over the session, all under one test key. They enter the HTTP metrics in Prometheus; the environment file records every run window so they can be excluded from the Chapter 4 traffic figures. Revoke the test key afterwards.
+**Side effects in production:** 2,880 synthetic requests over the session, all under one test key. They enter the HTTP metrics in Prometheus; the environment file records every run window so they can be told apart from real traffic in experiment 06. Revoke the test key afterwards.
 
 **Regenerating `tickers.txt`:** see the query in its header. It only changes if the corpus changes, and a new list means the cold scenario is no longer the same experiment: keep the file of the run being quoted.

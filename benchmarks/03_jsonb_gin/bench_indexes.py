@@ -5,6 +5,8 @@ For each table size it builds a copy of `articles` with the first N rows, then
 for each index variant it checks that the query returns the same rows as the
 production one and times it with EXPLAIN ANALYZE. It talks to Postgres through
 `docker exec psql`, so it needs nothing beyond the standard library.
+Writes one CSV row per query and one per index built, and appends the server
+settings and the chosen tickers to the environment file.
 """
 import argparse
 import csv
@@ -19,6 +21,7 @@ TABLE = "bench_articles"
 PRODUCTION_WHERE = "{ticker} = ANY(a.tickers)"
 # `= ANY` cannot use a GIN index. Containment can, and for a single ticker it
 # selects exactly the same rows.
+# Reference: https://www.postgresql.org/docs/15/gin.html
 CONTAINMENT_WHERE = "a.tickers @> ARRAY[{ticker}]::varchar[]"
 QUERY = f"""
 SELECT a.*, r.*
@@ -31,9 +34,11 @@ LIMIT 40"""
 GIN_INDEX = ("bench_tickers_gin", f"CREATE INDEX bench_tickers_gin ON {TABLE} USING gin (tickers)")
 # The existing published_at index is ascending with nulls last, which does not
 # match the query's DESC NULLS LAST order, so it cannot feed the LIMIT directly.
+# Reference: https://www.postgresql.org/docs/15/indexes.html
 ORDER_INDEX = ("bench_published_desc",
                f"CREATE INDEX bench_published_desc ON {TABLE} (published_at DESC NULLS LAST)")
 
+# Variant name -> (indexes to build, WHERE template).
 VARIANTS = {
     "baseline": ([], PRODUCTION_WHERE),
     "gin": ([GIN_INDEX], CONTAINMENT_WHERE),
@@ -47,10 +52,17 @@ INDEX_COLUMNS = ["size", "table_rows", "variant", "index", "build_ms", "size_byt
 
 
 class Postgres:
+    """Runs SQL in the benchmark container through psql."""
+
     def __init__(self, container):
         self.container = container
 
     def run(self, sql):
+        """Run SQL through psql and return its output, stripped.
+
+        Reference: https://docs.python.org/3/library/subprocess.html
+        """
+        # -X skips any psqlrc, -At prints bare values, ON_ERROR_STOP makes an error raise.
         result = subprocess.run(
             ["docker", "exec", "-i", self.container,
              "psql", "-X", "-q", "-At", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "bench"],
@@ -58,16 +70,18 @@ class Postgres:
         return result.stdout.strip()
 
     def timed(self, sql):
-        """Runs one statement and returns its server-side duration in ms."""
+        """Run one statement and return its duration in ms, as timed by psql."""
         out = self.run(f"\\timing on\n{sql};")
         return float(re.findall(r"Time: ([\d.]+) ms", out)[-1])
 
 
 def sql_literal(value):
+    """Quote a value as an SQL string literal, doubling any single quote."""
     return "'" + value.replace("'", "''") + "'"
 
 
 def build_table(pg, size):
+    """Rebuild the bench table with the first `size` rows by id and return its row count."""
     limit = "" if size == "all" else f"LIMIT {int(size)}"
     # LIKE ... INCLUDING ALL copies the production indexes, so the baseline is
     # the schema production actually has.
@@ -75,17 +89,24 @@ def build_table(pg, size):
         DROP TABLE IF EXISTS {TABLE};
         CREATE TABLE {TABLE} (LIKE articles INCLUDING ALL);
         INSERT INTO {TABLE} SELECT * FROM articles ORDER BY id {limit};""")
+    # Fresh statistics, so the planner does not plan on an unanalysed copy.
     pg.run(f"VACUUM ANALYZE {TABLE};")
     return int(pg.run(f"SELECT count(*) FROM {TABLE};"))
 
 
 def pick_tickers(pg):
     """Three tickers by frequency: the most covered, a typical one that fills
-    the LIMIT, and the rarest, where an ordered scan finds nothing to stop at."""
+    the LIMIT, and the rarest, where an ordered scan finds nothing to stop at.
+
+    Returns:
+        Dict from ticker class to (ticker, article count). "typical" is
+        missing when no ticker has 40 articles.
+    """
     rows = pg.run(f"""
         SELECT t, count(*) FROM {TABLE}, unnest(tickers) AS t
         GROUP BY t ORDER BY count(*) DESC, t;""").splitlines()
     counts = [(t, int(n)) for t, n in (r.split("|") for r in rows)]
+    # 40 is the query's LIMIT; the typical ticker is the middle one of those that reach it.
     filling = [c for c in counts if c[1] >= 40]
     picks = {"common": counts[0], "rare": counts[-1]}
     if filling:
@@ -94,6 +115,12 @@ def pick_tickers(pg):
 
 
 def apply_variant(pg, indexes):
+    """Build the indexes of one variant and time each build.
+
+    Returns:
+        List of (index name, build time in ms, size in bytes).
+    """
+    # Both bench indexes go first, so every variant starts from the production schema.
     pg.run(f"DROP INDEX IF EXISTS {GIN_INDEX[0]}; DROP INDEX IF EXISTS {ORDER_INDEX[0]};")
     built = []
     for name, ddl in indexes:
@@ -105,6 +132,7 @@ def apply_variant(pg, indexes):
 
 
 def result_fingerprint(pg, where):
+    """Return 'count:md5' for the query's rows, the MD5 taken over their published_at."""
     # Ties on published_at may come back in any order, so the fingerprint is
     # the ordered list of timestamps, which is the same for any correct plan.
     return pg.run(f"""
@@ -114,7 +142,7 @@ def result_fingerprint(pg, where):
 
 
 def scans(plan):
-    """The access paths of a plan, e.g. 'Seq Scan bench_articles; Index Scan raw_articles_pkey'."""
+    """Return the access paths of a plan, e.g. 'Seq Scan bench_articles; Index Scan raw_articles_pkey'."""
     found = []
     if "Scan" in plan["Node Type"]:
         found.append(f"{plan['Node Type']} {plan.get('Index Name') or plan.get('Relation Name', '')}".strip())
@@ -124,8 +152,13 @@ def scans(plan):
 
 
 def explain(pg, where):
+    """Run the query once under EXPLAIN ANALYZE and return the fields of one CSV row.
+
+    Reference: https://www.postgresql.org/docs/15/sql-explain.html
+    """
     out = json.loads(pg.run(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {QUERY.format(where=where)};"))[0]
     top = out["Plan"]
+    # The buffers of the top node include those of all its children, so they cover the whole query.
     return {
         "execution_ms": f"{out['Execution Time']:.3f}",
         "planning_ms": f"{out['Planning Time']:.3f}",
@@ -136,6 +169,7 @@ def explain(pg, where):
 
 
 def main():
+    """Record the server settings, then measure every size, variant and ticker."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--container", required=True)
     parser.add_argument("--sizes", required=True, help="space separated row counts, or 'all'")
@@ -148,6 +182,7 @@ def main():
     pg = Postgres(args.container)
     with open(args.environment, "a", encoding="utf-8") as env:
         env.write(pg.run("SELECT 'server_version: ' || version();") + "\n")
+        # Settings that affect the plan the planner picks and how much stays cached.
         for setting in ("shared_buffers", "work_mem", "effective_cache_size",
                         "random_page_cost", "max_parallel_workers_per_gather"):
             env.write(f"{setting}: {pg.run(f'SHOW {setting};')}\n")
@@ -183,6 +218,7 @@ def main():
                         queries.writerow({"size": size, "table_rows": table_rows, "variant": variant,
                                           "ticker_class": ticker_class, "ticker": ticker,
                                           "matches": matches, "rep": rep, **explain(pg, where)})
+                # Flushed per variant, so a stopped run keeps what it already measured.
                 qf.flush()
                 print(f"   {variant} done", flush=True)
 

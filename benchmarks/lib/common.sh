@@ -2,14 +2,20 @@
 #
 # Configuration comes from the repository .env, which is not in git, so no
 # address or credential is ever written into a benchmark file.
+#
+# Usage: source ../lib/common.sh   (from an experiment folder)
 
+# BASH_SOURCE, not $0: when sourced, $0 is the calling script.
 BENCH_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Falls back to two levels up when git is not available.
 REPO_ROOT="$(git -C "$BENCH_LIB_DIR" rev-parse --show-toplevel 2>/dev/null || (cd "$BENCH_LIB_DIR/../.." && pwd))"
+# Downloaded tools (vegeta) live outside the repository.
 BENCH_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/syndra-bench"
 
 # read_env KEY: value of KEY in the repository .env, empty if absent. Always
 # succeeds: a missing key must reach the caller's own message, not end a
 # `set -e` script in silence.
+# The last definition wins, and quotes, spaces and Windows CRs are stripped.
 read_env() {
   grep -E "^$1=" "$REPO_ROOT/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' \r" || true
 }
@@ -31,6 +37,7 @@ vps_host() {
 }
 
 # vps CMD: runs CMD on the VPS, forwarding stdin.
+# BatchMode makes ssh fail instead of waiting for a password prompt.
 vps() {
   ssh -o BatchMode=yes -o ConnectTimeout=10 "$(vps_host)" "$@"
 }
@@ -38,9 +45,11 @@ vps() {
 # vps_psql app|prefect [psql flags]: runs the SQL on stdin against production.
 # The session is forced read-only, so a mistake in a benchmark cannot write.
 vps_psql() {
+  # Single quotes: $POSTGRES_DB is expanded inside the container, not here.
   local db='$POSTGRES_DB'
   [ "$1" = prefect ] && db=prefect_db
   shift
+  # -X skips ~/.psqlrc and ON_ERROR_STOP makes the first SQL error end psql with an error.
   vps "docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on' syndra_postgres \
        sh -c 'exec psql -X -q -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"$db\" $*'"
 }
@@ -52,6 +61,7 @@ deployed_etl_tag() {
   vps "grep -E '^ETL_TAG=' '${dir:-syndra-deploy}/.env' | cut -d= -f2" 2>/dev/null || echo unknown
 }
 
+# Timestamp for result file names; it sorts alphabetically in time order.
 new_stamp() {
   date +%Y%m%d_%H%M%S
 }

@@ -2,6 +2,10 @@
 # Experiment 03: which index the per-ticker API query needs, and from what volume.
 # Runs on a local copy of production data in a throwaway Postgres. Production is
 # only read, once, by pg_dump.
+#
+# Usage: ./measure.sh   (optional env: SIZES, REPS, REFRESH_DUMP=1)
+# Writes results/queries_<stamp>.csv, results/indexes_<stamp>.csv and
+# results/queries_<stamp>_environment.txt.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ../lib/common.sh
@@ -27,11 +31,14 @@ ENVIRONMENT="results/queries_${STAMP}_environment.txt"
 # repository. It is reused until REFRESH_DUMP=1, so a session measures one snapshot.
 if [ "$REFRESH_DUMP" = 1 ] || [ ! -s "$DUMP" ]; then
   echo "-> dumping articles and raw_articles from production (read-only)"
+  # \$ keeps the credentials unexpanded here; they expand inside the production container.
+  # Written to a .tmp first, so a failed dump never replaces the cached one.
   vps "docker exec syndra_postgres sh -c 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --no-owner --no-privileges -t articles -t raw_articles'" \
     | gzip > "$DUMP.tmp"
   mv "$DUMP.tmp" "$DUMP"
 fi
 
+# The throwaway container is removed on any exit, failures included.
 trap 'docker rm -f "$CONTAINER" >/dev/null 2>&1' EXIT
 # Two CPUs, like the VPS. Memory is left free, as it is for Postgres in production.
 docker run -d --name "$CONTAINER" --cpus 2 \
@@ -59,6 +66,7 @@ SELECT 'production_stats_reset: ' || coalesce(stats_reset::text, 'never') FROM p
 SQL
 } >> "$ENVIRONMENT"
 
+# Builds each table size and index variant and times the query; see bench_indexes.py.
 python3 bench_indexes.py --container "$CONTAINER" --sizes "$SIZES" --reps "$REPS" \
   --queries-csv "$QUERIES_CSV" --indexes-csv "$INDEXES_CSV" --environment "$ENVIRONMENT"
 

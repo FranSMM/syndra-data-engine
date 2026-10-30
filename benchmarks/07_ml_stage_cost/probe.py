@@ -22,6 +22,7 @@ VECTOR_LOAD = (
 # skips the hub's freshness check, so the difference is that check.
 OFFLINE = {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
 
+# name: (code run with python -c, extra environment variables)
 MEASUREMENTS = {
     "python_empty": ("pass", {}),
     "import_torch_transformers": ("import torch, transformers", {}),
@@ -35,10 +36,16 @@ MEASUREMENTS = {
 
 
 def main(name, reps):
+    """Run one measurement reps times, each in a new interpreter, and print name,rep,ms.
+
+    Reference: https://docs.python.org/3/library/subprocess.html
+    Reference: https://docs.python.org/3/library/time.html (perf_counter)
+    """
     code, extra_env = MEASUREMENTS[name]
     env = {**os.environ, **extra_env}
     for rep in range(1, reps + 1):
         start = time.perf_counter()
+        # /code is the image's working directory, where the app package lives.
         subprocess.run([sys.executable, "-c", code], cwd="/code", env=env, check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f"{name},{rep},{(time.perf_counter() - start) * 1000:.1f}", flush=True)

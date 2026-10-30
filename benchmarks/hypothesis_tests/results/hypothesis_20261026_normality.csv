@@ -1,0 +1,71 @@
+experiment,group,condition,n,w,p_value,normal
+02,Extract: Generic RSS Spiders,1 feed,3257,0.1268,1.05e-81,no
+02,Extract: Generic RSS Spiders,3 feeds,879,0.0363,1.73e-54,no
+02,Load: PostgreSQL async,1 feed,3257,0.9741,6.82e-24,no
+02,Load: PostgreSQL async,3 feeds,879,0.9838,2.84e-08,no
+02,MLOps: Sentiment Enrichment,1 feed,3257,0.1249,9.48e-82,no
+02,MLOps: Sentiment Enrichment,3 feeds,879,0.9264,2.46e-20,no
+02,MLOps: Vector Indexing,1 feed,3257,0.2344,6.77e-79,no
+02,MLOps: Vector Indexing,3 feeds,879,0.5284,2.94e-43,no
+02,flow_total,1 feed,3257,0.2314,5.6e-79,no
+02,flow_total,3 feeds,879,0.3632,8.16e-48,no
+03,"10000 rows, common ticker",baseline,29,0.7757,3.15e-05,no
+03,"10000 rows, common ticker",gin,29,0.8797,0.00331,no
+03,"10000 rows, rare ticker",baseline,29,0.9266,0.0449,no
+03,"10000 rows, rare ticker",gin,29,0.5056,8.92e-09,no
+03,"10000 rows, typical ticker",baseline,29,0.8727,0.00232,no
+03,"10000 rows, typical ticker",gin,29,0.7827,4.15e-05,no
+03,"10000 rows, common ticker",gin_and_order,29,0.7416,8.81e-06,no
+03,"10000 rows, rare ticker",gin_and_order,29,0.7079,2.74e-06,no
+03,"10000 rows, typical ticker",gin_and_order,29,0.6843,1.26e-06,no
+03,"10000 rows, common ticker",order_index,29,0.8164,0.000167,no
+03,"10000 rows, rare ticker",order_index,29,0.8079,0.000116,no
+03,"10000 rows, typical ticker",order_index,29,0.7369,7.47e-06,no
+03,"25000 rows, common ticker",baseline,29,0.8989,0.0092,no
+03,"25000 rows, common ticker",gin,29,0.7193,4.03e-06,no
+03,"25000 rows, rare ticker",baseline,29,0.8622,0.00137,no
+03,"25000 rows, rare ticker",gin,29,0.5652,4.01e-08,no
+03,"25000 rows, typical ticker",baseline,29,0.8244,0.000237,no
+03,"25000 rows, typical ticker",gin,29,0.6640,6.68e-07,no
+03,"25000 rows, common ticker",gin_and_order,29,0.8190,0.000186,no
+03,"25000 rows, rare ticker",gin_and_order,29,0.5414,2.17e-08,no
+03,"25000 rows, typical ticker",gin_and_order,29,0.6706,8.19e-07,no
+03,"25000 rows, common ticker",order_index,29,0.6937,1.71e-06,no
+03,"25000 rows, rare ticker",order_index,29,0.9427,0.118,not rejected
+03,"25000 rows, typical ticker",order_index,29,0.9605,0.338,not rejected
+03,"50000 rows, common ticker",baseline,29,0.9156,0.0236,no
+03,"50000 rows, common ticker",gin,29,0.9615,0.357,not rejected
+03,"50000 rows, rare ticker",baseline,29,0.7968,7.33e-05,no
+03,"50000 rows, rare ticker",gin,29,0.5008,7.94e-09,no
+03,"50000 rows, typical ticker",baseline,29,0.8953,0.00757,no
+03,"50000 rows, typical ticker",gin,29,0.6988,2.02e-06,no
+03,"50000 rows, common ticker",gin_and_order,29,0.7480,1.11e-05,no
+03,"50000 rows, rare ticker",gin_and_order,29,0.3896,6.53e-10,no
+03,"50000 rows, typical ticker",gin_and_order,29,0.9617,0.361,not rejected
+03,"50000 rows, common ticker",order_index,29,0.7008,2.16e-06,no
+03,"50000 rows, rare ticker",order_index,29,0.9604,0.336,not rejected
+03,"50000 rows, typical ticker",order_index,29,0.9247,0.0401,no
+03,"74300 rows, common ticker",baseline,29,0.9433,0.122,not rejected
+03,"74300 rows, common ticker",gin,29,0.6325,2.59e-07,no
+03,"74300 rows, rare ticker",baseline,29,0.9788,0.808,not rejected
+03,"74300 rows, rare ticker",gin,29,0.6026,1.1e-07,no
+03,"74300 rows, typical ticker",baseline,29,0.6228,1.95e-07,no
+03,"74300 rows, typical ticker",gin,29,0.5930,8.46e-08,no
+03,"74300 rows, common ticker",gin_and_order,29,0.7958,7.04e-05,no
+03,"74300 rows, rare ticker",gin_and_order,29,0.7495,1.18e-05,no
+03,"74300 rows, typical ticker",gin_and_order,29,0.9685,0.519,not rejected
+03,"74300 rows, common ticker",order_index,29,0.9650,0.434,not rejected
+03,"74300 rows, rare ticker",order_index,29,0.7808,3.85e-05,no
+03,"74300 rows, typical ticker",order_index,29,0.8459,0.000628,no
+04,wall time,production,29,0.9789,0.81,not rejected
+04,wall time,batch 1,29,0.7532,1.35e-05,no
+04,wall time,batch 2,29,0.8441,0.000578,no
+04,wall time,batch 4,29,0.9133,0.0207,no
+04,wall time,batch 8,29,0.7395,8.17e-06,no
+04,wall time,batch 16,29,0.8343,0.000368,no
+04,wall time,batch 32,29,0.8403,0.000484,no
+04,wall time,batch 64,29,0.7354,7.06e-06,no
+05,sentiment,warm,717,0.2239,3.14e-47,no
+05,sentiment,cold,717,0.0905,1.08e-49,no
+05,search,warm,717,0.5521,3.44e-39,no
+05,search,cold,717,0.7441,8.38e-32,no

@@ -2,6 +2,9 @@
 """Experiment 07: fixed and per-article cost of the ML stages, and what the
 fixed cost is made of.
 
+Reads the three files measure.sh writes under the prefix: _runs.csv,
+_probe.csv and _environment.txt.
+
 Usage: python3 analyze.py results/ml_YYYYMMDD_HHMMSS
 
 Prints one CSV, view,subject,metric,value,ci95_low,ci95_high,unit.
@@ -22,22 +25,35 @@ STAGES = {
     "MLOps: Sentiment Enrichment": ("import_sentiment_stage", "load_sentiment_models", "load_sentiment_models_offline"),
     "MLOps: Vector Indexing": ("import_vector_stage", "load_vector_model", "load_vector_model_offline"),
 }
+# Ranges of N (inclusive) for the medians that check the straight-line fit.
 N_BINS = ((1, 5), (6, 10), (11, 20), (21, 50), (51, 100), (101, 10_000))
 
 out = csv.writer(sys.stdout)
 
 
 def emit(view, subject, metric, value, ci=None, unit=""):
+    """Write one summary row; ci is a (low, high) pair, or None for no interval."""
     low, high = ci if ci else ("", "")
     out.writerow([view, subject, metric, value, low, high, unit])
 
 
 def s(seconds):
+    """Format seconds with two decimals."""
     return f"{seconds:.2f}"
 
 
 def fit(points):
-    """Least-squares intercept and slope of seconds = a + b * N."""
+    """Least-squares intercept and slope of seconds = a + b * N.
+
+    a is the fixed cost of a run and b the cost of each article.
+    Reference: Jain (1991), The Art of Computer Systems Performance Analysis, ch. 14.
+
+    Args:
+        points: (N, seconds) pairs, with at least two different N.
+
+    Returns:
+        (a, b) in seconds and seconds per article.
+    """
     n = len(points)
     mean_n = sum(p[0] for p in points) / n
     mean_s = sum(p[1] for p in points) / n
@@ -48,6 +64,7 @@ def fit(points):
 
 
 def read_environment(path):
+    """Parse the "key: value" lines of the environment file into a dict."""
     environment = {}
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if ": " in line and not line.startswith("#"):
@@ -57,7 +74,16 @@ def read_environment(path):
 
 
 def stage_runs(path, since=None):
-    """{stage: [(N, seconds)]} for completed runs whose N is known."""
+    """Read the completed runs of each stage as (N, seconds) pairs.
+
+    Args:
+        path: the _runs.csv file.
+        since: optional UTC timestamp "YYYY-MM-DDTHH:MM:SSZ"; earlier runs are skipped.
+
+    Returns:
+        ({stage: [(N, seconds)]} for the runs whose N is known,
+         {stage: count} of the runs whose N is unknown).
+    """
     runs = defaultdict(list)
     unknown = defaultdict(int)
     with open(path, newline="", encoding="utf-8") as f:
@@ -72,7 +98,14 @@ def stage_runs(path, since=None):
 
 
 def scaling(view, runs, unknown, rng):
-    """The fit per stage, returned so the breakdown can use it."""
+    """Emit the run counts, medians and fit a + b * N of each stage.
+
+    The intervals of a and b come from a bootstrap that resamples whole runs.
+    Reference: Efron and Tibshirani (1993), An Introduction to the Bootstrap.
+
+    Returns:
+        {stage: (a, b, median N of the runs with N > 0)}, for the breakdown.
+    """
     fits = {}
     for stage, points in runs.items():
         empty = sorted(p[1] for p in points if p[0] == 0)
@@ -103,6 +136,11 @@ def scaling(view, runs, unknown, rng):
 
 
 def probe(path, rng):
+    """Emit the first repetition and the median of the rest for each probe measurement.
+
+    Returns:
+        {measurement: [seconds of every repetition but the first]}.
+    """
     by_name = defaultdict(list)
     with open(path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -120,6 +158,11 @@ def probe(path, rng):
 
 
 def breakdown(fits, probe_values, rng):
+    """Split the time of a run at the median N into the pieces the probe can time.
+
+    The pieces are differences of medians between consecutive probe
+    measurements, so they add up to the full model load.
+    """
     def diff(base, other):
         """Median of other minus median of base, with its interval."""
         value = statistics.median(probe_values[other]) - statistics.median(probe_values[base])
@@ -152,6 +195,7 @@ def breakdown(fits, probe_values, rng):
 
 
 def main(prefix):
+    """Print the summary CSV of one measure.sh session."""
     rng = random.Random(stats.SEED)
     environment = read_environment(f"{prefix}_environment.txt")
     out.writerow(["view", "subject", "metric", "value", "ci95_low", "ci95_high", "unit"])

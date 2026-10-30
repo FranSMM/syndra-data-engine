@@ -12,21 +12,25 @@ import argparse
 import csv
 import sys
 
-# Column order of vegeta's CSV encoder.
+# Column order of vegeta's CSV encoder, which writes no header row.
+# See https://github.com/tsenart/vegeta
 VEGETA_COLUMNS = ["timestamp", "code", "latency_ns", "bytes_out", "bytes_in", "error",
                   "body_b64", "attack", "seq", "method", "url", "headers_b64"]
 OUTPUT_COLUMNS = ["seq", "timestamp", "code", "latency_ms", "bytes_in", "error", "url"]
 
 
 def main():
+    """Read vegeta CSV rows from stdin and write the reduced rows to stdout."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--base", required=True)
     parser.add_argument("--field", action="append", default=[], help="name=value added to every row")
     parser.add_argument("--header", action="store_true", help="print the header row and exit")
     args = parser.parse_args()
 
+    # Split on the first "=" only, so a value may contain "=" itself.
     fixed = [f.split("=", 1) for f in args.field]
     writer = csv.writer(sys.stdout, lineterminator="\n")
+    # The caller writes the header once and then appends one block of rows per run.
     if args.header:
         writer.writerow([name for name, _ in fixed] + OUTPUT_COLUMNS)
         return
@@ -38,6 +42,7 @@ def main():
             row["seq"],
             row["timestamp"],
             row["code"],
+            # Vegeta records nanoseconds; the results use milliseconds.
             f"{int(row['latency_ns']) / 1e6:.3f}",
             row["bytes_in"],
             row["error"],

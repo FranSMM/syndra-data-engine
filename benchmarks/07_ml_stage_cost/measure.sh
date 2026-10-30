@@ -2,6 +2,10 @@
 # Experiment 07: why the ML stages barely grow with the number of articles.
 # Read-only: stage durations and batch sizes from prefect_db, and timed imports
 # and model loads inside the production scheduler, kept away from the ETL.
+#
+# Usage: ./measure.sh   (REPS, CONTAINER and BLOCK_BUDGET_S can be overridden)
+# Writes results/ml_<stamp>_runs.csv, results/ml_<stamp>_probe.csv and
+# results/ml_<stamp>_environment.txt.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ../lib/common.sh
@@ -19,6 +23,8 @@ MEASUREMENTS="python_empty import_torch_transformers import_sentiment_stage load
 wait_for_etl_gap() {
   local now next active
   while :; do
+    # now, next scheduled start (0 if none) and active flow runs, all as integers.
+    # A scheduled run up to 5 minutes late still counts as the next one.
     IFS='|' read -r now next active < <(vps_psql prefect -At <<'SQL'
 SELECT extract(epoch FROM now())::bigint,
        coalesce(extract(epoch FROM min(expected_start_time)
@@ -42,6 +48,7 @@ ENVIRONMENT="${PREFIX}_environment.txt"
 write_environment_header "$ENVIRONMENT"
 {
   echo "repetitions: $REPS"
+  # Escaped \$ expands on the VPS; $CONTAINER expands here.
   vps "
     echo image: \$(docker inspect -f '{{.Config.Image}}' $CONTAINER)
     echo cores: \$(nproc)
@@ -55,6 +62,8 @@ write_environment_header "$ENVIRONMENT"
 # One row per ML stage run. N is the sum of the batch sizes the stage logged;
 # a run that logged its "nothing to do" line has N = 0, and a run that logged
 # neither (code older than those lines) has N empty: unknown, not zero.
+# regexp_replace drops the hex suffix Prefect appends to each task run name,
+# so the runs group by stage.
 echo "-> stage runs from prefect_db"
 vps_psql prefect > "${PREFIX}_runs.csv" <<'SQL'
 COPY (
@@ -90,6 +99,7 @@ COPY (
 ) TO STDOUT WITH (FORMAT csv, HEADER true);
 SQL
 
+# probe.py goes through stdin, so nothing is copied into the container.
 echo "measurement,repetition,ms" > "${PREFIX}_probe.csv"
 for name in $MEASUREMENTS; do
   wait_for_etl_gap

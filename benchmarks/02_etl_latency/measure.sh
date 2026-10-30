@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Experiment 02: ETL latency per stage, from the history Prefect already records.
 # Read-only: exports durations from prefect_db and generates no load.
+#
+# Usage: ./measure.sh   (from WSL, with SSH access to the VPS)
+# Writes results/etl_<stamp>.csv and results/etl_<stamp>_environment.txt.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ../lib/common.sh
@@ -11,6 +14,8 @@ CSV="results/etl_${STAMP}.csv"
 ENVIRONMENT="results/etl_${STAMP}_environment.txt"
 
 write_environment_header "$ENVIRONMENT"
+# ETL and Prefect versions, plus how much history the export covers.
+# -At prints bare values, without headers or column padding.
 {
   echo "deployed_etl_tag: $(deployed_etl_tag)"
   echo "prefect_server_image: $(vps "docker inspect -f '{{.Config.Image}}' syndra_prefect_server")"
@@ -24,6 +29,9 @@ SQL
 # One row per task run plus one per flow run (stage "flow_total"), with the
 # number of feeds that run processed. The stage name loses Prefect's hash
 # suffix, the same normalisation the ETL metrics use (ADR 041).
+# feeds: the count from each run's "BYOS: N active" log line; max() in case it
+# is logged more than once. Every state is exported; analyze.py keeps COMPLETED.
+# COPY ... TO STDOUT streams the CSV over SSH, so nothing is written on the VPS.
 vps_psql prefect > "$CSV" <<'SQL'
 COPY (
   WITH feeds AS (
@@ -56,5 +64,6 @@ COPY (
 ) TO STDOUT WITH (FORMAT csv, HEADER true);
 SQL
 
+# Row count minus the header line.
 echo "Data:        $CSV ($(($(wc -l < "$CSV") - 1)) rows)"
 echo "Environment: $ENVIRONMENT"

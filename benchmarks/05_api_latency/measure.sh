@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Experiment 05: API latency at the load of a single client.
 # Runs against production at 0.4 requests/s, well under the 100/min per-key limit.
+#
+# Usage: CLIENT_LABEL=laptop-wsl-home ./measure.sh   (any setting below can be overridden)
+# Writes results/latency_<stamp>.csv, one row per request, and
+# results/latency_<stamp>_environment.txt with the setup and every run window.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ../lib/common.sh
@@ -23,6 +27,7 @@ CLIENT_LABEL="${CLIENT_LABEL:-laptop-wsl}"
 
 VEGETA="$(ensure_vegeta)"
 
+# duration_minutes DURATION: the vegeta duration rounded up to whole minutes.
 duration_minutes() {
   case "$1" in
     *m) echo "${1%m}" ;;
@@ -42,6 +47,7 @@ wait_for_etl_free_window() {
   fi
   local minute
   while :; do
+    # 10# reads "08" and "09" as decimal, not as invalid octal.
     minute=$((10#$(date +%M)))
     if [ "$minute" -ge 5 ] && [ $((minute + DURATION_MIN)) -le 55 ]; then
       return 0
@@ -71,18 +77,25 @@ write_environment_header "$ENVIRONMENT"
   echo "# Each run window below should be excluded from the production traffic metrics."
 } >> "$ENVIRONMENT"
 
+# Header only; each run below appends its rows, tagged with scenario and run.
 python3 ../lib/vegeta_csv.py --header --base "$BASE" --field scenario= --field run= > "$CSV"
 
+# Scenarios are interleaved inside each repetition, so a slow hour of the day
+# does not fall on a single scenario.
 first_run=1
 for run in $(seq 1 "$REPS"); do
   for scenario in $SCENARIOS; do
     [ "$first_run" = 1 ] || sleep "$PAUSE_SECONDS"
     first_run=0
+    # Each run gets its own slice of the cold search queries, so none repeats within a session.
     python3 ../lib/api_targets.py "$scenario" --base "$BASE" --tickers tickers.txt \
       --slice "$((run - 1))" --slices "$REPS" > "$WORK/targets"
     wait_for_etl_free_window
     start=$(date -Iseconds)
     echo "-> $scenario run $run ($RATE for $DURATION) from $start"
+    # Open loop: vegeta sends at -rate whether or not earlier requests have answered,
+    # so a slow server cannot slow the client down and hide its latency.
+    # Reference: Schroeder et al. (2006), Open Versus Closed; https://github.com/tsenart/vegeta
     "$VEGETA" attack -targets="$WORK/targets" -rate="$RATE" -duration="$DURATION" \
         -timeout=30s -header "X-API-Key: $SYNDRA_BENCH_KEY" -name="$scenario" \
       | "$VEGETA" encode --to csv \

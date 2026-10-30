@@ -16,9 +16,13 @@ import argparse
 import random
 import urllib.parse
 
+# The module docstring doubles as the --help text, so it is kept as usage only.
+
 SEED = 2026
+# Warm scenarios repeat one request, so after the first miss the cache answers.
 WARM_TICKER = "NVDA"
 WARM_QUERY = "semiconductor export restrictions"
+# Combined with every ticker to build the cold search queries.
 TOPICS = [
     "earnings guidance", "analyst downgrade", "supply chain risk", "regulatory probe",
     "dividend increase", "share buyback", "layoffs", "merger talks", "product launch",
@@ -27,19 +31,31 @@ TOPICS = [
 
 
 def read_lines(path):
+    """Read a file's non-empty lines, skipping comments that start with #."""
     with open(path, encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 
 def sentiment_url(base, ticker):
+    """Return the sentiment endpoint URL for a ticker."""
     return f"{base}/api/v1/sentiment/{urllib.parse.quote(ticker)}"
 
 
 def search_url(base, query):
+    """Return the semantic search URL for a query, percent-encoded."""
     return f"{base}/api/v1/search/semantic?query={urllib.parse.quote(query)}"
 
 
 def build_urls(scenario, base, tickers, slice_index, slices):
+    """Return the list of URLs a scenario requests, in order.
+
+    Args:
+        scenario: one of the four scenarios in the module docstring.
+        base: API base URL, without a trailing slash.
+        tickers: ticker symbols read from the tickers file.
+        slice_index: which slice of the cold search queries to use (the run number).
+        slices: how many disjoint slices to split those queries into.
+    """
     if scenario == "sentiment_warm":
         return [sentiment_url(base, WARM_TICKER)]
     if scenario == "sentiment_cold":
@@ -51,6 +67,7 @@ def build_urls(scenario, base, tickers, slice_index, slices):
         # never repeated within one, so no query can hit the previous run's cache.
         pool = [f"{t} {topic}" for t in tickers for topic in TOPICS]
         random.Random(SEED).shuffle(pool)
+        # Integer division: up to slices - 1 leftover queries are never used.
         size = len(pool) // slices
         start = (slice_index % slices) * size
         return [search_url(base, q) for q in pool[start:start + size]]
@@ -58,6 +75,7 @@ def build_urls(scenario, base, tickers, slice_index, slices):
 
 
 def main():
+    """Parse the arguments and print one vegeta target per URL."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("scenario")
     parser.add_argument("--base", required=True)
@@ -68,6 +86,8 @@ def main():
 
     urls = build_urls(args.scenario, args.base.rstrip("/"), read_lines(args.tickers),
                       args.slice_index, args.slices)
+    # Vegeta's plain text target format, one "METHOD URL" per line; vegeta
+    # cycles through the list in order. See https://github.com/tsenart/vegeta
     for url in urls:
         print(f"GET {url}")
 

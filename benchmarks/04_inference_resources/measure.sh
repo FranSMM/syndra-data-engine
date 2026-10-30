@@ -2,6 +2,9 @@
 # Experiment 04: FinBERT time and memory, one text at a time versus in batches.
 # Runs locally in the deployed ETL image, limited to the scheduler's two cores
 # and 2.5 GiB. Production is only read, once, to sample the texts.
+#
+# Usage: ./measure.sh   (optional env: BATCH_SIZES, REPS, ARTICLES, IMAGE)
+# Writes results/inference_<stamp>.csv and results/inference_<stamp>_environment.txt.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ../lib/common.sh
@@ -11,7 +14,7 @@ REPS="${REPS:-30}"
 ARTICLES="${ARTICLES:-64}"
 SAMPLE_SIZE=256
 IMAGE="${IMAGE:-ghcr.io/fransmm/syndra-etl:$(deployed_etl_tag)}"
-# Same limits as the scheduler container in infra/docker-compose.prod.yml.
+# Memory as the scheduler limit in infra/docker-compose.prod.yml; two cores as the VPS has.
 CPUS="0-1"
 MEMORY="2560m"
 TEXTS="$BENCH_CACHE/04_inference_resources/texts.jsonl"
@@ -39,6 +42,8 @@ trap 'rm -f "$PROBE_LOG"' EXIT
 
 # stderr carries the model's loading chatter, so it goes to a log that is only
 # shown when a probe fails.
+# No network and the offline flags: the weights must come from the image, never the Hub.
+# PYTHONPATH=/code lets probe.py import the app package, which the image keeps there.
 run_probe() {
   docker run --rm --network none --cpuset-cpus "$CPUS" --memory "$MEMORY" \
     -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e PYTHONPATH=/code \
@@ -60,8 +65,10 @@ write_environment_header "$ENVIRONMENT"
   run_probe --describe
 } >> "$ENVIRONMENT"
 
+# Same field order as the rows probe.py prints.
 echo "mode,batch_size,rep,articles,wall_ms,cpu_ms,rss_mb,peak_rss_mb,load_ms,load_rss_mb" > "$CSV"
 
+# measure_one PROBE_ARGS: one fresh probe process, its rows appended to the CSV.
 measure_one() {
   echo "-> $*"
   # A process killed for memory is a result, not a failure of the script.
