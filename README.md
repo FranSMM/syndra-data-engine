@@ -112,34 +112,45 @@ Syndra prioritizes data immutability, reproducibility, and clear separation of c
 
 ---
 
-## System Architecture
+## Running Locally
 
-```mermaid
-graph LR
-    %%{init: {'themeVariables': { 'fontSize': '12px', 'nodePadding': 8 }}}%%
-    %% Styles
-    classDef source fill:#f9f9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-    classDef storage fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b
-    classDef compute fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#4a148c
-    classDef api fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20
+Requirements: Docker with Compose V2. On Windows, use WSL 2 with the WSL integration of Docker Desktop enabled, since the repository scripts are written for bash.
 
-    %% Main pipeline
-    A["RSS Feeds<br/>(Financial News)"]:::source
-    B[/"Web Crawler<br/>(Python Scrapy)"/]:::compute
-    C[("Bronze Layer<br/>(PostgreSQL JSONB)")]:::storage
-    D{"NLP Engine<br/>(FinBERT Sentiment)"}:::compute
-    E[("Silver Layer<br/>(Relational Data)")]:::storage
-    F{"Embedding Engine<br/>(MiniLM Vectors)"}:::compute
-    G[("Gold Layer<br/>(Qdrant DB)")]:::storage
-
-    A --> B --> C --> D --> E --> F --> G
-
-    %% API layer (separate row naturally)
-    H(["B2B REST API<br/>(FastAPI)"]):::api
-
-    E -->|Relational Queries| H
-    G -->|Semantic Search| H
+```bash
+git clone https://github.com/FranSMM/syndra-data-engine.git
+cd syndra-data-engine
+cp .env.example .env    # set the Postgres password in POSTGRES_PASSWORD and in PREFECT_API_DATABASE_CONNECTION_URL
+docker compose up -d --build
+docker compose exec api alembic upgrade head
+docker compose exec api python -m app.scripts.provision_client "local"
 ```
+
+The first build is the slow step: it downloads FinBERT and all-MiniLM-L6-v2 at pinned revisions and bakes them into the image, which takes about 4.4 GB. The last command prints an API key. Only its hash is stored, so copy it at that point.
+
+The stack runs six services: PostgreSQL, Qdrant, Redis, the API, the Prefect server and the scheduler. The scheduler runs the pipeline every hour from startup. To run it once without waiting:
+
+```bash
+docker compose exec scheduler python -m app.pipeline --manual
+```
+
+The API is then available at `http://localhost:8000`, with interactive docs at `/docs`, and the Prefect UI at `http://localhost:4200`:
+
+```bash
+curl "http://localhost:8000/api/v1/sentiment/NVDA" -H "X-API-Key: <your key>"
+```
+
+The database starts empty and fills with what is ingested from then on. The production corpus is not distributed, since it contains text from third-party articles. Compared with production, the local stack has no reverse proxy, observability layer or demo, and the API reloads the code mounted from `backend/app`.
+
+### Tests
+
+```bash
+make test               # unit tests
+make test-integration   # security tests on a throwaway stack, never on the development one
+```
+
+### Benchmarks
+
+The seven experiments that evaluate the system live in [`benchmarks/`](./benchmarks/README.md), one folder per experiment with its question, how to run it and its raw data. Since the raw data is committed, every result can be recomputed without measuring again.
 
 ---
 

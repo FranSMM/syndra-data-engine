@@ -1,85 +1,63 @@
-# ⚙️ Backend API (`Syndra`) - Internal Developer Guide
+# Backend
 
-> **SECURITY CLASSIFICATION:** INTERNAL / CONFIDENTIAL
-> The high-performance REST API module for the Syndra DaaS platform. This document contains proprietary infrastructure execution flows, NLP tuning references, and scraping evasion architectures. **Do NOT expose this to public repositories.**
+Code shared by the API and the ETL pipeline. Both run from the same Docker image, built from `Dockerfile` on Python 3.11 with CPU-only PyTorch. FinBERT and all-MiniLM-L6-v2 are downloaded at build time at pinned revisions and loaded offline at runtime (ADR-042).
 
----
+To run the whole stack, see [Running Locally](../README.md#running-locally) in the root README.
 
-## 🛠 Tech Stack 
+## Layout
 
-- **Framework:** `FastAPI` (Python 3.11+)
-- **Validation & Data Contracts:** `Pydantic v2`
-- **Database ORM & Query Builder:** `SQLAlchemy (Async)` / `asyncpg`
-- **Vector Search Client:** `Qdrant Client`
-- **Machine Learning Layer:** `PyTorch`, `sentence-transformers` (FinBERT)
-- **Data Engineering:** `Prefect 3.0`, `Scrapy`
-
----
-
-## 🚀 Native / Docker-First Environment Setup
-
-For deterministic builds and avoiding dependency hell (e.g., CUDA drift or PEP 668 limits on Linux), development heavily favors our Docker container workflows.
-
-### 1. Environment & Network
-Configure your local environment by copying the example globals. Both the template and the working `.env` live at the **repository root**: that is where Compose and `deploy.sh` read it from. Ensure no sensitive B2B keys or production DB passwords are committed:
-```bash
-# from the repository root
-cp .env.example .env
-```
-*`POSTGRES_SERVER` must be set to `postgres` (the Compose service name), not `db` or `localhost`: Alembic resolves it as a DNS name from inside the container.*
-
-### 2. General Infrastructure Spin-up
-Deploy the backing databases (Postgres & Qdrant) alongside the FastAPI orchestration API.
-```bash
-docker compose up -d
-```
-*Note: If you run into `PermissionError 13` or database lock errors on WSL2, refer to the incident logs: `docs/troubleshooting/001_docker_wsl_permissionerror_13.md`.*
-
-### 3. Executing the Complete ETL Pipeline
-The data ingestion and enrichment pipeline operates totally decoupled from the API endpoints. We execute the extraction (Scrapy), validation, load, and internal ML inference via our monolithic operations Makefile.
-```bash
-make run-etl
-```
-*This command fires the Prefect orchestration to scrape, score via FinBERT, and index embeddings inside Qdrant automatically.*
-
-### 4. Local API Endpoints
-Bypass commercial gateways for isolated structural testing:
-```bash
-curl -X GET "http://localhost:8000/api/v1/sentiment/AAPL" \
-     -H "Accept: application/json"
+```text
+backend/
+├── app/
+│   ├── main.py              # FastAPI application
+│   ├── pipeline.py          # Prefect flow: extract, load, sentiment, vector indexing
+│   ├── backfill_vectors.py  # Vector indexing stage (Silver to Qdrant)
+│   ├── api/                 # Endpoints (sentiment, semantic search) and dependencies
+│   ├── core/                # Settings, API key security, Redis, metrics, date and source rules
+│   ├── db/                  # Async SQLAlchemy session and Qdrant client
+│   ├── models/              # ORM models (Bronze, Silver, API keys)
+│   ├── schemas/             # Pydantic response contracts
+│   ├── scraper/             # Scrapy RSS spider and the Bronze loader
+│   ├── ml/                  # Sentiment enrichment stage
+│   ├── services/            # FinBERT, embeddings and ticker extraction
+│   └── scripts/             # Maintenance scripts
+├── alembic/                 # Database migrations
+├── data/                    # feeds.json (RSS sources) and company_tickers.json
+└── tests/
 ```
 
----
+## Pipeline
 
-## 🔒 Proprietary IP / Core NLP Algorithms
+`pipeline.py` defines one Prefect flow that the scheduler runs every hour. Each stage runs in its own subprocess, so the memory taken by the models goes back to the system when the stage ends:
 
-All evasion heuristics, FinBERT model tuning, and mathematical normalization logic reside in this codebase. They must be vigorously protected:
+1. **Extract:** Scrapy reads the feeds in `data/feeds.json`, one request at a time per domain with a one second delay, identifying itself with its own user agent.
+2. **Load:** inserts the new items into Bronze as JSONB, unchanged.
+3. **Sentiment:** takes the pending Bronze items, normalises them, extracts their tickers, scores them with FinBERT and writes them to Silver.
+4. **Vector indexing:** embeds the new Silver articles with all-MiniLM-L6-v2 and upserts them into Qdrant.
 
-- **Mathematical Normalized Sentiment:** Our B2B edge relies on non-rounded sentiment values evaluated over absolute continuous thresholds via HuggingFace's probabilistic pipelines. Do not default back to strict labels (`bullish`/`bearish`) without returning the continuous `sentiment_score`.
-- **Scrapy Anti-Bot Evasion:** We rotate User-Agents to emulate normalized Chromium clients on Windows to bypass `robots.txt` or heuristic blocks, notably on `Yahoo Finance`. Refer to the spider configuration inside `app/scraper/` and avoid leaking proxy-rotation logics.
-- **Medallion Triggers:** The transition of `RawArticle` from `pending` -> `loaded` -> `processed` triggers our internal Qdrant backfilling logic. Do not bypass the SQLAlchemy models (ORM) to insert into DB directly, as it disrupts the Prefect queues.
-
----
-
-## 💻 Bare-Metal Execution (Without Docker)
-
-If you must run the stack outside the main `docker-compose` stack (e.g., for detailed GPU profiling or unit testing without container orchestration overhead):
+## Migrations
 
 ```bash
-# 1. Virtual Environment Setup
-python3 -m venv venv
-source venv/bin/activate
-
-# 2. Dependency Resolution
-pip install -r requirements.txt
-
-# 3. Uvicorn Execution 
-# (Ensure Postgres and Qdrant are mapped to 127.0.0.1 on the host)
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+make makemigrations m="describe the change"
+make migrate
 ```
 
-### Testing Enforcements
-Run `pytest` to execute unit and validation tests against Pydantic data contracts. Never branch off without ensuring data contracts remain intact.
+## Maintenance scripts
+
+Run them inside the API container, for example `docker compose exec api python -m app.scripts.provision_client "name"`. The scripts that rewrite data only write to Silver or Qdrant; Bronze is never modified.
+
+| Script | Purpose |
+|---|---|
+| `provision_client` | Creates an API key. `--trial N` makes it expire after N days. |
+| `backfill_tickers` | Re-extracts tickers for existing articles after `company_tickers.json` changes. |
+| `backfill_published_at` | Re-derives publication dates from the original feed string in Bronze. |
+| `recalculate_sentiment` | Recomputes the sentiment score of existing articles. |
+| `resync_vector_payloads` | Brings Qdrant payloads back in line with Silver. |
+| `update_sec_tickers` | Refreshes `company_tickers.json` from the SEC list. |
+
+## Tests
+
 ```bash
-pytest tests/
+make test               # unit tests, from the repository root
+make test-integration   # security tests against a throwaway stack
 ```

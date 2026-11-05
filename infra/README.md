@@ -1,59 +1,26 @@
-# 🐳 Infrastructure & DevOps 
+# Infrastructure
 
-> **This directory contains all IaC (Infrastructure as Code), container configurations, and platform setups for the Syndra DaaS environment.**
+Production configuration for the VPS. The root `docker-compose.yml` is the local development stack; the files here are what runs in production.
 
----
+| File | Purpose |
+|---|---|
+| `docker-compose.prod.yml` | Production stack, with every third-party image pinned to a version and digest. |
+| `Caddyfile` | Sole ingress, with automatic TLS for `api.` and `demo.syndradata.com`. Returns 403 on `/metrics`. |
+| `prometheus.yml` | Scrapes the API, cAdvisor, node exporter and Prometheus itself over the internal network. |
+| `postgres-init.sh` | Creates `prefect_db`, the Prefect server database, the first time the Postgres volume is created. |
+| `backup_syndra.sh`, `backup.cron` | Daily `pg_dump` at 03:00, keeping seven days. Installed on the VPS by hand. |
 
-## 🗺 Docker-First Topology
+## Production stack
 
-Syndra utilizes a strict Docker-First monorepo approach, containerizing all dependencies to ensure parity across development, staging, and production. The root `docker-compose.yml` spins up the complete platform ecosystem:
+Eleven services on one Docker network:
 
-- **🕸️ api:** The FastAPI asynchronous backend serving financial data endpoints.
-- **🐘 postgres:** The Relational Database (`Port 5432`). Stores raw financial text, metadata, and sentiment aggregations.
-- **📐 qdrant:** The Vector Database (`Port 6333`). Stores document embeddings for semantic search and operational fast-retrieval.
-- ** orchestrator:** `prefect-server` data pipeline orchestrator managing ETL scheduling and pipeline state.
-- **⚡ redis:** High-speed caching layer for API responses and rate-limiting.
+- **Data:** PostgreSQL 15 (Bronze, Silver and the Prefect database), Qdrant and Redis.
+- **Application:** the API and the scheduler, both from the `syndra-etl` image, the Prefect server and the Streamlit demo.
+- **Observability:** Prometheus, cAdvisor and node exporter.
+- **Ingress:** Caddy, the only service exposed to the internet. The origin only accepts traffic from Cloudflare.
 
----
+Postgres, Qdrant, Redis, Prefect and Prometheus listen only on `127.0.0.1`. Their panels are reached through an SSH tunnel with `make web`.
 
-## 🧠 Local Edge Inference
+## Deployment
 
-To ensure strict data privacy and eliminate recurring cloud API costs, the system's NLP workload (sentiment analysis, ticker extraction via sentence-transformers/GGUF) is executed locally. 
-
-The architecture is explicitly optimized to run efficiently on **WSL2 / Edge hardware**, processing batch inference directly against the containerized data nodes without requiring external REST calls to third-party LLM providers.
-
----
-
-## 🗄 Volumes & Persistence
-
-Local directory volumes inside `./data` are utilized for robust data persistence across container restarts:
-
-```text
-data/
-├── postgres/          # Relational financial data storage
-├── qdrant/            # Vector embeddings storage
-└── grafana/           # Dashboard configurations (Future)
-```
-
-> ⚠️ **Warning:** Never delete these directories in production unless performing a deliberate hard wipe of the data tier.
-
----
-
-## 🔒 Environment Variables
-
-Refer to `.env.example` in the root directory. Critical variables include:
-
-- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_SERVER`, `POSTGRES_DB`
-- `PREFECT_API_DATABASE_CONNECTION_URL`
-- `QDRANT_HOST`, `REDIS_URL`
-- `VPS_USER`, `VPS_IP`, `DEPLOY_DIR` (read by `deploy.sh` and the check scripts)
-
----
-
-## 📊 Monitoring
-
-- **Grafana Dashboard:** `http://localhost:3000` *(Default credentials mapped in `.env`)*
-- **Key Metrics to Track:**
-  - API Latency (p95) for data clients
-  - Local Vector/GGUF inference times & VRAM utilization
-  - Prefect ETL pipeline success rates
+`deploy.sh`, in the repository root, builds the images that changed, tags them with the short git SHA and points production at that tag. A rollback points it back at an earlier tag without rebuilding (ADR-022). The VPS connection is read from `VPS_USER`, `VPS_IP` and `DEPLOY_DIR` in the root `.env`.
